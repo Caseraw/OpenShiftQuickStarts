@@ -1,0 +1,30 @@
+---
+# Namespace for policies that target ONLY spoke (managed) clusters.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: spoke
+  annotations:
+    openshift.io/display-name: "ACM Spoke Policies"
+    openshift.io/description: >-
+      Governance policies that apply to spoke (managed) clusters only, excluding
+      the hub. Placements in this namespace select clusters where local-cluster
+      is not set to true.
+---
+# Bind the 'global' ManagedClusterSet so Placements can select spoke clusters.
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+spec:
+  clusterSet: global

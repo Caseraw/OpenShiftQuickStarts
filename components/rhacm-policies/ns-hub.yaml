@@ -1,0 +1,29 @@
+---
+# Namespace for policies that target ONLY the hub cluster (local-cluster).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: hub
+  annotations:
+    openshift.io/display-name: "ACM Hub Policies"
+    openshift.io/description: >-
+      Governance policies that apply exclusively to the RHACM hub cluster.
+      Placements in this namespace select clusters with label local-cluster=true.
+---
+# Bind the 'global' ManagedClusterSet so Placements can select local-cluster.
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+spec:
+  clusterSet: global

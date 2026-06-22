@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: open-cluster-management-observability
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-observability
+  annotations:
+    openshift.io/display-name: "ACM Observability"
+    openshift.io/description: >-
+      Namespace for the RHACM MultiCluster Observability service
+      (Thanos, Grafana, Alertmanager).

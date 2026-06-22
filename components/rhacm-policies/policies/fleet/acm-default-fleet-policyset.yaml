@@ -1,0 +1,68 @@
+apiVersion: policy.open-cluster-management.io/v1beta1
+kind: PolicySet
+metadata:
+  name: acm-default-fleet-policyset
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+  annotations:
+    policy.open-cluster-management.io/description: acm-default-fleet-policyset
+spec:
+  description: acm-default-fleet-policyset
+  policies:
+    - configure-fleet-rbac
+    - configure-kubernetes-nmstate
+    - configure-openshift-gitops
+    - configure-openshift-loki
+    - configure-openshift-pipelines
+    - configure-openshift-logging
+    - configure-openshift-noo
+    - install-kubernetes-nmstate-operator
+    - install-openshift-coo
+    - install-openshift-gitops-operator
+    - install-openshift-logging-operator
+    - install-openshift-loki-operator
+    - install-openshift-noo
+    - install-openshift-pipelines-operator
+    - install-web-terminal-operator
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: acm-default-fleet-policyset-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: vendor
+              operator: In
+              values:
+                - OpenShift
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: acm-default-fleet-policyset-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+placementRef:
+  name: acm-default-fleet-policyset-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: acm-default-fleet-policyset
+    apiGroup: policy.open-cluster-management.io
+    kind: PolicySet

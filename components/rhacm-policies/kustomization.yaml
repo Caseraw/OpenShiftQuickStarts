@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Creates the three policy namespaces and binds each to the global
+# ManagedClusterSet. Individual policy files under policies/fleet|hub|spoke/
+# are applied by deploy.sh — no changes here when adding new policies.
+resources:
+  - ns-fleet.yaml
+  - ns-hub.yaml
+  - ns-spoke.yaml

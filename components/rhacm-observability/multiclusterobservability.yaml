@@ -1,0 +1,22 @@
+# MultiClusterObservability — enables the RHACM observability stack.
+# The thanos-object-storage Secret referenced here is created dynamically
+# by deploy.sh from the OBC credentials. Do not apply this file directly;
+# run scripts/deploy.sh instead.
+apiVersion: observability.open-cluster-management.io/v1beta2
+kind: MultiClusterObservability
+metadata:
+  name: observability
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-observability
+spec:
+  observabilityAddonSpec: {}
+  storageConfig:
+    # Block storage for Thanos stateful sets (alertmanager, compactor,
+    # ruler, receive, store). Immediate binding required for stateful sets.
+    storageClass: ocs-external-storagecluster-ceph-rbd-immediate
+    # Object storage secret built from OBC credentials by deploy.sh.
+    metricObjectStorage:
+      name: thanos-object-storage
+      key: thanos.yaml

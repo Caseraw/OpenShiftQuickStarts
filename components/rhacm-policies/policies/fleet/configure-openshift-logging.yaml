@@ -1,0 +1,258 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: configure-openshift-logging
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+  annotations:
+    policy.open-cluster-management.io/description: >-
+      Configures the OpenShift Logging stack: creates the logging-collector
+      ServiceAccount and ClusterRoleBindings, deploys ClusterLogForwarder to
+      forward all log types to the LokiStack instance, creates the
+      LogFileMetricExporter for dashboard metrics, and enables the Logs tab in
+      the web console via a UIPlugin CR.
+      Prerequisites: install-openshift-coo (COO must be installed),
+      configure-openshift-loki (LokiStack must be Ready).
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/controls: CM Baseline Configuration
+spec:
+  disabled: false
+  policy-templates:
+
+    # ------------------------------------------------------------------ #
+    # 1. Collector ServiceAccount + ClusterRoleBindings
+    #    All four bindings must exist BEFORE ClusterLogForwarder inputRefs
+    #    are set — missing bindings destroy the entire collector DaemonSet.
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-logging-collector-rbac
+        spec:
+          remediationAction: enforce
+          severity: critical
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ServiceAccount
+                metadata:
+                  name: logging-collector
+                  namespace: openshift-logging
+
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: logging-collector:write-logs
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: logging-collector-logs-writer
+                subjects:
+                  - kind: ServiceAccount
+                    name: logging-collector
+                    namespace: openshift-logging
+
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: logging-collector:collect-application
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: collect-application-logs
+                subjects:
+                  - kind: ServiceAccount
+                    name: logging-collector
+                    namespace: openshift-logging
+
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: logging-collector:collect-infrastructure
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: collect-infrastructure-logs
+                subjects:
+                  - kind: ServiceAccount
+                    name: logging-collector
+                    namespace: openshift-logging
+
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: logging-collector:collect-audit
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: collect-audit-logs
+                subjects:
+                  - kind: ServiceAccount
+                    name: logging-collector
+                    namespace: openshift-logging
+
+    # ------------------------------------------------------------------ #
+    # 2. ClusterLogForwarder — routes all log types to LokiStack
+    #    tls.ca references logging-loki-gateway-ca-bundle which the Loki
+    #    Operator creates automatically when LokiStack becomes Ready.
+    #    Without this TLS block the collector fails at runtime with
+    #    "certificate verify failed" even if status shows Ready: True.
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-logging-clusterlogforwarder
+        spec:
+          remediationAction: enforce
+          severity: critical
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: observability.openshift.io/v1
+                kind: ClusterLogForwarder
+                metadata:
+                  name: instance
+                  namespace: openshift-logging
+                spec:
+                  serviceAccount:
+                    name: logging-collector
+                  outputs:
+                    - name: lokistack-out
+                      type: lokiStack
+                      lokiStack:
+                        target:
+                          name: logging-loki
+                          namespace: openshift-logging
+                        authentication:
+                          token:
+                            from: serviceAccount
+                      tls:
+                        ca:
+                          key: service-ca.crt
+                          configMapName: logging-loki-gateway-ca-bundle
+                  pipelines:
+                    - name: all-logs
+                      inputRefs:
+                        - application
+                        - infrastructure
+                        - audit
+                      outputRefs:
+                        - lokistack-out
+
+    # ------------------------------------------------------------------ #
+    # 3. LogFileMetricExporter — generates per-container log volume metrics
+    #    Required for the "Produced Logs" dashboard panel; without it the
+    #    panel shows "No datapoints found". Singleton: must be named
+    #    "instance" in "openshift-logging".
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-logging-logfilemetricexporter
+        spec:
+          remediationAction: enforce
+          severity: low
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: logging.openshift.io/v1alpha1
+                kind: LogFileMetricExporter
+                metadata:
+                  name: instance
+                  namespace: openshift-logging
+                spec:
+                  nodeSelector: {}
+                  tolerations: []
+                  resources:
+                    limits:
+                      cpu: 500m
+                      memory: 256Mi
+                    requests:
+                      cpu: 200m
+                      memory: 128Mi
+
+    # ------------------------------------------------------------------ #
+    # 4. UIPlugin — enables Observe → Logs in the web console
+    #    Requires the Cluster Observability Operator (install-coo policy).
+    #    remediationAction: enforce (COO is installed fleet-wide via sub-coo).
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-logging-uiplugin
+        spec:
+          remediationAction: enforce
+          severity: low
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: observability.openshift.io/v1alpha1
+                kind: UIPlugin
+                metadata:
+                  name: logging
+                spec:
+                  type: Logging
+                  logging:
+                    lokiStack:
+                      name: logging-loki
+                    logsLimit: 50
+                    timeout: 30s
+                    schema: otel
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: configure-openshift-logging-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: vendor
+              operator: In
+              values:
+                - OpenShift
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: configure-openshift-logging-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+placementRef:
+  name: configure-openshift-logging-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: configure-openshift-logging
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy

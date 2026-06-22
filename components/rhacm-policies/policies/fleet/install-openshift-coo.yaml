@@ -1,0 +1,79 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: install-openshift-coo
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+  annotations:
+    policy.open-cluster-management.io/description: >-
+      Installs the Cluster Observability Operator (COO) fleet-wide.
+      COO installs into openshift-operators (pre-existing AllNamespaces
+      OperatorGroup — no namespace or OG configuration required).
+      Required by: configure-openshift-logging (UIPlugin / Observe → Logs tab).
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/controls: CM Baseline Configuration
+spec:
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1beta1
+        kind: OperatorPolicy
+        metadata:
+          name: install-openshift-coo
+        spec:
+          remediationAction: enforce
+          severity: low
+          complianceType: musthave
+          subscription:
+            name: cluster-observability-operator
+            namespace: openshift-operators
+            channel: stable
+            source: redhat-operators
+            sourceNamespace: openshift-marketplace
+          upgradeApproval: Automatic
+          versions: []
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: install-openshift-coo-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: vendor
+              operator: In
+              values:
+                - OpenShift
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: install-openshift-coo-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+placementRef:
+  name: install-openshift-coo-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: install-openshift-coo
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy

@@ -1,0 +1,113 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: configure-hub-gitops-cluster
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: hub
+  annotations:
+    policy.open-cluster-management.io/description: configure-hub-gitops-cluster
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/controls: CM Baseline Configuration
+spec:
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-hub-gitops-cluster
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            # Bind the global ManagedClusterSet to openshift-gitops so that
+            # the Placement below can select clusters across the full fleet.
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: cluster.open-cluster-management.io/v1beta2
+                kind: ManagedClusterSetBinding
+                metadata:
+                  name: global
+                  namespace: openshift-gitops
+                spec:
+                  clusterSet: global
+            # Placement that selects all clusters (used by GitOpsCluster).
+            # Tolerations ensure unreachable/unavailable clusters are not skipped.
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: cluster.open-cluster-management.io/v1beta1
+                kind: Placement
+                metadata:
+                  name: rhacm-gitops-cluster-placement
+                  namespace: openshift-gitops
+                spec:
+                  tolerations:
+                    - key: cluster.open-cluster-management.io/unreachable
+                      operator: Exists
+                    - key: cluster.open-cluster-management.io/unavailable
+                      operator: Exists
+                  clusterSets:
+                    - global
+            # GitOpsCluster registers all RHACM-managed clusters as ArgoCD
+            # destinations in the openshift-gitops instance on the hub.
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: apps.open-cluster-management.io/v1beta1
+                kind: GitOpsCluster
+                metadata:
+                  name: rhacm-gitops-cluster
+                  namespace: openshift-gitops
+                spec:
+                  argoServer:
+                    argoNamespace: openshift-gitops
+                  placementRef:
+                    name: rhacm-gitops-cluster-placement
+                    kind: Placement
+                    apiVersion: cluster.open-cluster-management.io/v1beta1
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: configure-hub-gitops-cluster-placement
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: local-cluster
+              operator: In
+              values:
+                - "true"
+            - key: name
+              operator: In
+              values:
+                - local-cluster
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: configure-hub-gitops-cluster-placement
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+placementRef:
+  name: configure-hub-gitops-cluster-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: configure-hub-gitops-cluster
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy

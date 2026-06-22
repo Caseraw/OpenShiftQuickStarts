@@ -1,0 +1,15 @@
+# ObjectBucketClaim — requests a dedicated S3 bucket from ODF/NooBaa.
+# ODF automatically creates a matching ConfigMap and Secret (same name) in
+# this namespace containing the bucket endpoint and credentials.
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: rhacm-observability-bucket
+  namespace: open-cluster-management-observability
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-observability
+spec:
+  storageClassName: openshift-storage.noobaa.io
+  generateBucketName: rhacm-observability

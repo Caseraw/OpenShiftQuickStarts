@@ -1,0 +1,30 @@
+---
+# Namespace for policies that target ALL managed clusters (hub + spokes).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+  annotations:
+    openshift.io/display-name: "ACM Fleet Policies"
+    openshift.io/description: >-
+      Governance policies that apply to every managed cluster in the fleet
+      (hub + all spokes). Placements in this namespace use the global
+      ManagedClusterSet with no cluster-selector predicates.
+---
+# Bind the 'global' ManagedClusterSet so Placements here can target any cluster.
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+spec:
+  clusterSet: global

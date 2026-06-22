@@ -1,0 +1,173 @@
+apiVersion: console.openshift.io/v1
+kind: ConsoleQuickStart
+metadata:
+  name: openshift-dashboard-overview
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+spec:
+  displayName: Tour the OpenShift Console Overview Dashboard
+  description: Learn how to read the OpenShift web console Overview page — cluster details, status indicators, utilization charts, and the activity feed.
+  introduction: |-
+    The **Overview** page is the first thing you see when you open the OpenShift web console. It gives you a real-time snapshot of your entire cluster in one place.
+
+    After completing this quick start, you will know how to:
+
+    - Locate key cluster identification and configuration details
+    - Interpret the cluster status indicators and act on warnings
+    - Read the cluster utilization charts to spot resource pressure
+    - Use the Activity panel to track recent changes and ongoing operations
+  durationMinutes: 10
+  tags:
+    - openshift
+    - getting-started
+  prerequisites:
+    - Access to the OpenShift web console
+    - Any cluster role (view access is sufficient for this tour)
+
+  tasks:
+    - title: Find your cluster details
+      description: |-
+        The **Details** panel in the top-left of the Overview page is your cluster identity card. It tells you exactly which cluster you are connected to and how it is configured.
+
+        1. If you are not already there, click [Home]{{highlight qs-nav-home}} in the left navigation and select **Overview**.
+
+        1. Locate the **Details** panel on the left side of the page.
+
+        1. Note the **Cluster API address** — this is the URL your `oc` CLI and tooling use to communicate with the cluster.
+
+        1. Note the **Cluster ID** — a unique identifier used in support cases and subscription management.
+
+        1. Check the **Infrastructure provider** field. Common values are `BareMetal`, `AWS`, `Azure`, and `GCP`. This tells you where the cluster nodes are running.
+
+        1. Check the **OpenShift version**. An **Update cluster** link appears here when a newer version is available.
+
+        1. Review the **Update channel** (for example, `stable-4.21`). This controls which update stream the cluster follows.
+
+        1. Note the **Service Level Agreement (SLA)** entry and how many days remain on the current subscription trial.
+
+        1. To manage subscription settings, click the **Manage subscription settings** link — it opens the Red Hat Hybrid Cloud Console in a new tab. Close that tab when done.
+
+      review:
+        instructions: |-
+          Verify you have located the Details panel:
+
+          - Can you see the **Cluster API address** and **Cluster ID** in the Details panel?
+        failedTaskHelp: Navigate to **Home → Overview** and look for the Details panel in the upper-left of the page.
+      summary:
+        success: You found the cluster identity details.
+        failed: Try the steps again — make sure you are on the Overview page.
+
+    - title: Read the cluster status indicators
+      description: |-
+        The **Status** panel in the top-centre of the Overview page shows the health of every major cluster subsystem at a glance. Each item displays a coloured icon: green (healthy), yellow (degraded or warning), or red (critical error).
+
+        1. Locate the **Status** panel. You will see rows of status checks across two columns.
+
+        1. Review each status indicator:
+           - **Cluster** — overall cluster health.
+           - **Control Plane** — health of the API server and controller components.
+           - **Operators** — whether all installed operators are running correctly.
+           - **Dynamic Plugins** — whether console extension plugins loaded successfully.
+           - **Insights** — the Red Hat Insights analysis result for this cluster.
+           - **OpenShift Virtualization** — visible when the Virtualization operator is installed.
+           - **Storage** — health of the storage subsystem.
+
+        1. Click any green status badge to open a detailed view for that subsystem.
+
+        1. If a yellow or red badge is present, click **View details** or **View alerts** to read the full message. For example, a **ClusterNotUpgradeable** warning means an installed operator is blocking an upgrade — the detail view explains why.
+
+        1. If you see an **AlertmanagerReceiversNotConfigured** warning, that means no notification channel has been set up for cluster alerts yet. Click **Configure** to open the Alertmanager configuration page.
+
+        1. Click **View alerts** (top-right of the Status panel) to see all active alerts on the cluster.
+
+      review:
+        instructions: |-
+          Verify you can read the Status panel:
+
+          - Can you identify the colour of the **Operators** status indicator?
+          - If any yellow or red badges are visible, can you see the warning message by clicking them?
+        failedTaskHelp: Look for the Status panel in the top-centre area of the Overview page. Each subsystem shows a coloured circle icon next to its name.
+      summary:
+        success: You can read and interpret the cluster status indicators.
+        failed: Try the steps again.
+
+    - title: Interpret the cluster utilization charts
+      description: |-
+        The **Cluster utilization** panel shows live resource consumption graphs. Use it to quickly spot whether the cluster is under pressure before investigating further.
+
+        1. Locate the **Cluster utilization** section in the lower-centre of the Overview page.
+
+        1. The panel contains four resource rows: **CPU**, **Memory**, **Filesystem**, and **Network**. Each row shows:
+           - A clickable current-value link (for example, `6.28` cores or `50.51 GiB`) that navigates to a detailed Observe dashboard.
+           - A mini sparkline graph showing the trend over the selected time window.
+           - A dashed line indicating the total available capacity.
+
+        1. Check the **CPU** row. The number shown is the current usage across all nodes. The label below (for example, `89.72 available of 96`) shows total allocatable CPU.
+
+        1. Check the **Memory** row. Compare current usage against the total available memory. Memory pressure often shows up before CPU pressure during initial load spikes.
+
+        1. Check the **Filesystem** row to see how much cluster storage has been consumed.
+
+        1. Use the **Filter by Node type** dropdown to isolate utilization for control-plane nodes versus worker nodes.
+
+        1. Use the **time range** dropdown (top-right, default **1 hour**) to zoom out to 6 hours or 24 hours for trend analysis.
+
+        1. Click any of the metric value links (for example, the CPU number) to jump to the full **Observe → Dashboards** view for that metric.
+
+      review:
+        instructions: |-
+          Verify you can read the utilization panel:
+
+          - Can you see current CPU and Memory usage figures along with their available capacity totals?
+        failedTaskHelp: Scroll down on the Overview page to find the Cluster utilization panel. Make sure you are in the **Core platform** perspective.
+      summary:
+        success: You can read the cluster utilization charts.
+        failed: Try the steps again.
+
+    - title: Monitor activity and recent events
+      description: |-
+        The **Activity** panel on the right side of the Overview page is a live log of what is happening in your cluster right now. Use it to understand recent changes and catch unexpected activity early.
+
+        1. Locate the **Activity** panel on the right side of the page.
+
+        1. The panel is split into two sections:
+           - **Ongoing** — shows operations currently in progress, such as node upgrades, rollouts, or operator installations.
+           - **Recent events** — a timestamped list of the most recent Kubernetes events across all namespaces.
+
+        1. If the **Ongoing** section shows no current activity, it will display *"There are no ongoing activities."*
+
+        1. In the **Recent events** list, each entry shows:
+           - A coloured namespace badge (for example, **NS** in blue).
+           - The resource name that triggered the event.
+           - A short description of what changed (for example, *"Updated Secret/cdi-uploadserver-cert"*).
+           - A relative timestamp.
+
+        1. Click any event entry to navigate directly to the affected resource for more detail.
+
+        1. Use the **Pause** button at the top of the Activity panel to stop the live feed — useful when you want to read an entry without it scrolling away.
+
+        1. Click **Pause** again (it becomes **Resume**) to restart the live feed.
+
+      review:
+        instructions: |-
+          Verify you can use the Activity panel:
+
+          - Can you see at least one entry in the **Recent events** list?
+          - Does clicking **Pause** stop new events from appearing?
+        failedTaskHelp: The Activity panel is on the far right of the Overview page. If you cannot see it, try widening your browser window or scrolling right.
+      summary:
+        success: You can monitor cluster activity and recent events.
+        failed: Try the steps again.
+
+  conclusion: |-
+    You completed the OpenShift Console Overview Dashboard tour.
+
+    You now know how to:
+
+    - Read your cluster's identity details and subscription status in the **Details** panel
+    - Interpret colour-coded health badges in the **Status** panel
+    - Spot resource pressure using the **Cluster utilization** charts
+    - Track live changes with the **Activity** panel
+
+    As a next step, explore [Observe → Dashboards]{{highlight qs-nav-observe}} for deeper metrics, or click any status badge to drill into a specific subsystem.

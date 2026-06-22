@@ -1,0 +1,81 @@
+# hub/_template.yaml — Template for policies that target ONLY the hub cluster.
+# Copy this file, remove the leading underscore, and fill in every <placeholder>.
+#
+#   cp policies/hub/_template.yaml policies/hub/<category>-<description>.yaml
+#
+# Namespace: acm-default-hub-policies
+# Placement: selects clusters with label local-cluster=true (hub only).
+
+# ─── 1. Policy ───────────────────────────────────────────────────────────────
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: <policy-name>
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: hub
+  annotations:
+    policy.open-cluster-management.io/standards: <e.g. NIST SP 800-53>
+    policy.open-cluster-management.io/categories: <e.g. CM Configuration Management>
+    policy.open-cluster-management.io/controls: <e.g. CM-2 Baseline Configuration>
+spec:
+  disabled: false
+  remediationAction: inform   # inform | enforce
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: <policy-name>-config
+        spec:
+          remediationAction: inform
+          severity: medium
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: <target-namespace>
+
+---
+# ─── 2. Placement — hub cluster only ─────────────────────────────────────────
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: <policy-name>-placement
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+spec:
+  # Select only the hub cluster using the auto-assigned local-cluster=true label.
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            local-cluster: "true"
+
+---
+# ─── 3. PlacementBinding ──────────────────────────────────────────────────────
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: <policy-name>-binding
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+placementRef:
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+  name: <policy-name>-placement
+subjects:
+  - apiGroup: policy.open-cluster-management.io
+    kind: Policy
+    name: <policy-name>

@@ -1,0 +1,308 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: configure-openshift-loki
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+  annotations:
+    policy.open-cluster-management.io/description: >-
+      Configures OpenShift Loki object storage. Creates the ODF ObjectBucketClaim,
+      runs a one-shot Job to extract the dynamic OBC credentials and write the
+      logging-loki-s3 Secret consumed by LokiStack, and validates the Secret
+      exists with the correct static fields.
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/controls: CM Baseline Configuration
+spec:
+  disabled: false
+  policy-templates:
+
+    # ------------------------------------------------------------------ #
+    # 1. ObjectBucketClaim — provisions the NooBaa S3 bucket
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-loki-obc
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: objectbucket.io/v1alpha1
+                kind: ObjectBucketClaim
+                metadata:
+                  name: loki-bucket-odf
+                  namespace: openshift-logging
+                spec:
+                  generateBucketName: loki-bucket-odf
+                  storageClassName: openshift-storage.noobaa.io
+
+    # ------------------------------------------------------------------ #
+    # 2. RBAC for the secret-creation Job
+    #    ServiceAccount + Role (scoped to openshift-logging) + RoleBinding
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-loki-secret-rbac
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ServiceAccount
+                metadata:
+                  name: loki-secret-creator
+                  namespace: openshift-logging
+            # mustonlyhave enforces exact rule set — prevents stale rules with
+            # extra resourceNames restrictions from passing the musthave check.
+            - complianceType: mustonlyhave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: Role
+                metadata:
+                  name: loki-secret-creator
+                  namespace: openshift-logging
+                rules:
+                  - apiGroups: [""]
+                    resources: ["configmaps"]
+                    resourceNames: ["loki-bucket-odf"]
+                    verbs: ["get"]
+                  # resourceNames cannot restrict 'create' in Kubernetes RBAC
+                  # (name is in the request body, not the URL), so secrets
+                  # create/update/patch must be granted without resourceNames.
+                  - apiGroups: [""]
+                    resources: ["secrets"]
+                    resourceNames: ["loki-bucket-odf"]
+                    verbs: ["get"]
+                  # get is also needed: oc apply does GET first to decide
+                  # whether to create or patch the secret.
+                  - apiGroups: [""]
+                    resources: ["secrets"]
+                    verbs: ["get", "create", "update", "patch"]
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: RoleBinding
+                metadata:
+                  name: loki-secret-creator
+                  namespace: openshift-logging
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: Role
+                  name: loki-secret-creator
+                subjects:
+                  - kind: ServiceAccount
+                    name: loki-secret-creator
+                    namespace: openshift-logging
+
+    # ------------------------------------------------------------------ #
+    # 3. Job — waits for OBC to bind, then creates logging-loki-s3 Secret
+    #    Uses oc apply so re-runs are fully idempotent (credentials refresh).
+    #    RHACM enforces the Job object exists; if deleted it is recreated and
+    #    the script re-runs (safe because of --dry-run=client | oc apply).
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-loki-secret-job
+        spec:
+          remediationAction: enforce
+          severity: critical
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: batch/v1
+                kind: Job
+                metadata:
+                  name: create-loki-s3-secret
+                  namespace: openshift-logging
+                spec:
+                  backoffLimit: 10
+                  activeDeadlineSeconds: 600
+                  template:
+                    spec:
+                      serviceAccountName: loki-secret-creator
+                      restartPolicy: OnFailure
+                      containers:
+                        - name: create-secret
+                          image: registry.redhat.io/openshift4/ose-cli-rhel9:latest
+                          command:
+                            - /bin/bash
+                            - -c
+                            - |
+                              set -euo pipefail
+                              NS="openshift-logging"
+                              OBC_CM="loki-bucket-odf"
+                              SECRET_NAME="logging-loki-s3"
+
+                              echo "Waiting for OBC '${OBC_CM}' to bind..."
+                              until oc get configmap "${OBC_CM}" -n "${NS}" \
+                                    -o jsonpath='{.data.BUCKET_NAME}' 2>/dev/null \
+                                    | grep -q .; do
+                                echo "  OBC not yet bound — retrying in 10s"
+                                sleep 10
+                              done
+
+                              BUCKET_NAME=$(oc get configmap "${OBC_CM}" -n "${NS}" \
+                                -o jsonpath='{.data.BUCKET_NAME}')
+                              ACCESS_KEY=$(oc get secret "${OBC_CM}" -n "${NS}" \
+                                -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
+                              SECRET_KEY=$(oc get secret "${OBC_CM}" -n "${NS}" \
+                                -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
+
+                              echo "OBC bound — bucket: ${BUCKET_NAME}"
+
+                              oc create secret generic "${SECRET_NAME}" \
+                                -n "${NS}" \
+                                --from-literal=access_key_id="${ACCESS_KEY}" \
+                                --from-literal=access_key_secret="${SECRET_KEY}" \
+                                --from-literal=bucketnames="${BUCKET_NAME}" \
+                                --from-literal=endpoint="https://s3.openshift-storage.svc:443" \
+                                --from-literal=forcepathstyle="true" \
+                                --dry-run=client -o yaml | oc apply -f -
+
+                              echo "Secret '${SECRET_NAME}' created/updated successfully"
+
+    # ------------------------------------------------------------------ #
+    # 4. Validate — enforces the Secret exists with the correct static
+    #    fields. Reports NonCompliant until the Job has completed.
+    #    Dynamic credential keys are implicitly present if the Job succeeded.
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-loki-secret-exists
+        spec:
+          remediationAction: inform
+          severity: critical
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: logging-loki-s3
+                  namespace: openshift-logging
+                data:
+                  endpoint: aHR0cHM6Ly9zMy5vcGVuc2hpZnQtc3RvcmFnZS5zdmM6NDQz
+                  forcepathstyle: dHJ1ZQ==
+
+    # ------------------------------------------------------------------ #
+    # 5. CA bundle ConfigMap for LokiStack → NooBaa TLS trust
+    #    The service-ca controller injects the cluster's service-serving CA
+    #    into this ConfigMap under key "service-ca.crt" (LokiStack caKey
+    #    default). Without this, LokiStack silently drops logs with an
+    #    x509 error even though its status shows Ready.
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-loki-ca-bundle
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: loki-s3-ca-bundle
+                  namespace: openshift-logging
+                  annotations:
+                    service.beta.openshift.io/inject-cabundle: "true"
+
+    # ------------------------------------------------------------------ #
+    # 6. LokiStack CR — the log storage instance
+    #    Depends on: logging-loki-s3 Secret (step 3 Job) and
+    #                loki-s3-ca-bundle ConfigMap (step 5).
+    #    size: 1x.demo is suitable for lab/workshop clusters.
+    #    storageClassName: ocs-external-storagecluster-ceph-rbd-immediate
+    #      provides RWO block PVCs for ingesters, queriers, etc.
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-loki-lokistack
+        spec:
+          remediationAction: enforce
+          severity: critical
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: loki.grafana.com/v1
+                kind: LokiStack
+                metadata:
+                  name: logging-loki
+                  namespace: openshift-logging
+                spec:
+                  size: 1x.demo
+                  storage:
+                    schemas:
+                      - version: v13
+                        effectiveDate: "2024-10-15"
+                    secret:
+                      name: logging-loki-s3
+                      type: s3
+                    tls:
+                      caName: loki-s3-ca-bundle
+                      # caKey defaults to "service-ca.crt" — matches the key
+                      # injected by service.beta.openshift.io/inject-cabundle
+                  storageClassName: ocs-external-storagecluster-ceph-rbd-immediate
+                  tenants:
+                    mode: openshift-logging
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: configure-openshift-loki-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: vendor
+              operator: In
+              values:
+                - OpenShift
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: configure-openshift-loki-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+placementRef:
+  name: configure-openshift-loki-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: configure-openshift-loki
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy

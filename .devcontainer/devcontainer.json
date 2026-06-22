@@ -1,0 +1,8 @@
+{
+    "name": "OpenShift Quick Starts DevContainer",
+    "build": {
+        "dockerfile": "Containerfile"
+    },
+    "remoteUser": "root",
+    "containerUser": "root"
+}

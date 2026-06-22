@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# List every manifest that makes up this component.
+# resources:
+#   - namespace.yaml
+#   - subscription.yaml

@@ -1,0 +1,365 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: configure-openshift-noo
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+  annotations:
+    policy.open-cluster-management.io/description: >-
+      Configures Network Observability: creates the netobserv namespace, provisions
+      a dedicated ODF ObjectBucketClaim, runs a Job to build the loki-s3-netobserv
+      Secret, injects the TLS CA bundle, deploys a LokiStack (tenants.mode:
+      openshift-network — separate from the logging LokiStack), and creates the
+      FlowCollector cluster singleton to start eBPF flow capture.
+      Prerequisites: install-openshift-noo, install-openshift-loki-operator,
+      ODF/NooBaa available, OVN-Kubernetes CNI.
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/controls: CM Baseline Configuration
+spec:
+  disabled: false
+  policy-templates:
+
+    # ------------------------------------------------------------------ #
+    # 1. Namespace — netobserv
+    #    All NOO components (LokiStack, FlowCollector, eBPF agents) live here.
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-noo-namespace
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: netobserv
+                  labels:
+                    openshift.io/cluster-monitoring: "true"
+
+    # ------------------------------------------------------------------ #
+    # 2. ObjectBucketClaim — dedicated NooBaa bucket for the NOO LokiStack.
+    #    MUST be a separate bucket from the one used for OpenShift Logging.
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-noo-obc
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: objectbucket.io/v1alpha1
+                kind: ObjectBucketClaim
+                metadata:
+                  name: loki-bucket-netobserv
+                  namespace: netobserv
+                spec:
+                  generateBucketName: loki-bucket-netobserv
+                  storageClassName: openshift-storage.noobaa.io
+
+    # ------------------------------------------------------------------ #
+    # 3. RBAC for the secret-creation Job
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-noo-secret-rbac
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ServiceAccount
+                metadata:
+                  name: noo-secret-creator
+                  namespace: netobserv
+            - complianceType: mustonlyhave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: Role
+                metadata:
+                  name: noo-secret-creator
+                  namespace: netobserv
+                rules:
+                  - apiGroups: [""]
+                    resources: ["configmaps"]
+                    resourceNames: ["loki-bucket-netobserv"]
+                    verbs: ["get"]
+                  - apiGroups: [""]
+                    resources: ["secrets"]
+                    resourceNames: ["loki-bucket-netobserv"]
+                    verbs: ["get"]
+                  - apiGroups: [""]
+                    resources: ["secrets"]
+                    verbs: ["get", "create", "update", "patch"]
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: RoleBinding
+                metadata:
+                  name: noo-secret-creator
+                  namespace: netobserv
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: Role
+                  name: noo-secret-creator
+                subjects:
+                  - kind: ServiceAccount
+                    name: noo-secret-creator
+                    namespace: netobserv
+
+    # ------------------------------------------------------------------ #
+    # 4. Job — waits for OBC to bind, creates loki-s3-netobserv Secret
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-noo-secret-job
+        spec:
+          remediationAction: enforce
+          severity: critical
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: batch/v1
+                kind: Job
+                metadata:
+                  name: create-noo-loki-s3-secret
+                  namespace: netobserv
+                spec:
+                  backoffLimit: 10
+                  activeDeadlineSeconds: 600
+                  template:
+                    spec:
+                      serviceAccountName: noo-secret-creator
+                      restartPolicy: OnFailure
+                      containers:
+                        - name: create-secret
+                          image: registry.redhat.io/openshift4/ose-cli-rhel9:latest
+                          command:
+                            - /bin/bash
+                            - -c
+                            - |
+                              set -euo pipefail
+                              NS="netobserv"
+                              OBC_CM="loki-bucket-netobserv"
+                              SECRET_NAME="loki-s3-netobserv"
+
+                              echo "Waiting for OBC '${OBC_CM}' to bind..."
+                              until oc get configmap "${OBC_CM}" -n "${NS}" \
+                                    -o jsonpath='{.data.BUCKET_NAME}' 2>/dev/null \
+                                    | grep -q .; do
+                                echo "  OBC not yet bound — retrying in 10s"
+                                sleep 10
+                              done
+
+                              BUCKET_NAME=$(oc get configmap "${OBC_CM}" -n "${NS}" \
+                                -o jsonpath='{.data.BUCKET_NAME}')
+                              ACCESS_KEY=$(oc get secret "${OBC_CM}" -n "${NS}" \
+                                -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
+                              SECRET_KEY=$(oc get secret "${OBC_CM}" -n "${NS}" \
+                                -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
+
+                              echo "OBC bound — bucket: ${BUCKET_NAME}"
+
+                              oc create secret generic "${SECRET_NAME}" \
+                                -n "${NS}" \
+                                --from-literal=access_key_id="${ACCESS_KEY}" \
+                                --from-literal=access_key_secret="${SECRET_KEY}" \
+                                --from-literal=bucketnames="${BUCKET_NAME}" \
+                                --from-literal=endpoint="https://s3.openshift-storage.svc:443" \
+                                --from-literal=forcepathstyle="true" \
+                                --dry-run=client -o yaml | oc apply -f -
+
+                              echo "Secret '${SECRET_NAME}' created/updated successfully"
+
+    # ------------------------------------------------------------------ #
+    # 5. Validate — inform until loki-s3-netobserv Secret exists
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-noo-secret-exists
+        spec:
+          remediationAction: inform
+          severity: critical
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: loki-s3-netobserv
+                  namespace: netobserv
+                data:
+                  endpoint: aHR0cHM6Ly9zMy5vcGVuc2hpZnQtc3RvcmFnZS5zdmM6NDQz
+                  forcepathstyle: dHJ1ZQ==
+
+    # ------------------------------------------------------------------ #
+    # 6. CA bundle ConfigMap for NOO LokiStack → NooBaa TLS trust
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-noo-ca-bundle
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: loki-s3-netobserv-ca-bundle
+                  namespace: netobserv
+                  annotations:
+                    service.beta.openshift.io/inject-cabundle: "true"
+
+    # ------------------------------------------------------------------ #
+    # 7. LokiStack — dedicated instance for network flows
+    #    tenants.mode: openshift-network — MUST be separate from the
+    #    openshift-logging LokiStack (different tenant mode, different bucket).
+    #    adminGroups wired to cluster-admin (enforced by configure-fleet-rbac).
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-noo-lokistack
+        spec:
+          remediationAction: enforce
+          severity: critical
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: loki.grafana.com/v1
+                kind: LokiStack
+                metadata:
+                  name: loki-netobserv
+                  namespace: netobserv
+                spec:
+                  size: 1x.demo
+                  storage:
+                    schemas:
+                      - version: v13
+                        effectiveDate: "2024-10-15"
+                    secret:
+                      name: loki-s3-netobserv
+                      type: s3
+                    tls:
+                      caName: loki-s3-netobserv-ca-bundle
+                  storageClassName: ocs-external-storagecluster-ceph-rbd-immediate
+                  tenants:
+                    mode: openshift-network
+                    openshift:
+                      adminGroups:
+                        - cluster-admin
+                        - cluster-admins
+
+    # ------------------------------------------------------------------ #
+    # 8. FlowCollector — cluster singleton (must be named "cluster")
+    #    eBPF agent captures network flows; Loki mode LokiStack auto-
+    #    configures URLs, TLS, and RBAC against loki-netobserv.
+    #    consolePlugin adds "Network Traffic" under Observe in the web console.
+    # ------------------------------------------------------------------ #
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-noo-flowcollector
+        spec:
+          remediationAction: enforce
+          severity: critical
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: flows.netobserv.io/v1beta2
+                kind: FlowCollector
+                metadata:
+                  name: cluster
+                spec:
+                  namespace: netobserv
+                  deploymentModel: Service
+                  agent:
+                    type: eBPF
+                    ebpf:
+                      sampling: 50
+                      privileged: false
+                      excludeInterfaces:
+                        - lo
+                      interfaces: []
+                      cacheActiveTimeout: 15s
+                      cacheMaxFlows: 120000
+                  loki:
+                    enable: true
+                    mode: LokiStack
+                    lokiStack:
+                      name: loki-netobserv
+                      namespace: netobserv
+                  consolePlugin:
+                    enable: true
+                  networkPolicy:
+                    enable: true
+                  prometheus:
+                    querier:
+                      enable: true
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: configure-openshift-noo-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: vendor
+              operator: In
+              values:
+                - OpenShift
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: configure-openshift-noo-placement
+  namespace: acm-default-fleet-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: fleet
+placementRef:
+  name: configure-openshift-noo-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: configure-openshift-noo
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy

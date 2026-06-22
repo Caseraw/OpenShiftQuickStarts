@@ -1,0 +1,68 @@
+apiVersion: console.openshift.io/v1
+kind: ConsoleQuickStart
+metadata:
+  name: example-get-started
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+spec:
+  displayName: Example — Get started with OpenShift
+  description: A minimal quick start demonstrating basic console navigation and project creation.
+  introduction: |-
+    This example quick start walks you through creating a project in the OpenShift web console.
+
+    After completing this tutorial, you will know how to:
+
+    - Navigate to the Projects page
+    - Create a new project
+    - Verify your project appears in the console
+  durationMinutes: 5
+  tags:
+    - example
+    - getting-started
+  tasks:
+    - title: Create a project
+      description: |-
+        To create a project:
+
+        1. If present, click the [perspective switcher]{{highlight qs-perspective-switcher}} at the top of the navigation and select **Core platform**.
+
+        1. In the main navigation menu, select [Home]{{highlight qs-nav-home}} and click **Projects**.
+
+        1. Click **Create Project**.
+
+        1. In the **Name** field, enter a name for your project (for example, `my-example-project`).
+
+        1. Optionally add a **Display name** and **Description**.
+
+        1. Click **Create**.
+      review:
+        instructions: |-
+          Verify your project was created:
+
+          - Do you see your new project listed on the Projects page?
+        failedTaskHelp: This task isn't verified yet. Try the task again.
+      summary:
+        success: Your project has been created.
+        failed: Try the steps again.
+
+    - title: View project details
+      description: |-
+        To view your project details:
+
+        1. On the **Projects** page, click the name of the project you just created.
+
+        1. Review the project overview, including the **Details**, **YAML**, and **Access** tabs.
+      review:
+        instructions: |-
+          Verify you can see project details:
+
+          - Are you on the project overview page?
+          - Can you see the project name in the page header?
+        failedTaskHelp: This task isn't verified yet. Try the task again.
+      summary:
+        success: You viewed your project details.
+        failed: Try the steps again.
+  conclusion: >-
+    You completed the example quick start. You created a project and viewed its details
+    in the OpenShift web console.

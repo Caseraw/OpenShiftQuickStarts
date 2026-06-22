@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Applies the namespace, OperatorGroup, and Subscription.
+# The MultiClusterHub CR (multiclusterhub.yaml) is applied separately by
+# deploy.sh after the operator CSV has reached Succeeded — the CRD does not
+# exist until the operator is fully installed.
+resources:
+  - namespace.yaml
+  - operatorgroup.yaml
+  - subscription.yaml

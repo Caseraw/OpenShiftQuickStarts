@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+
+# Environment — operator-supplied configuration and credentials.
+# NEVER commit real values. Only *.example files are tracked.
+environment/env.sh
+# The credentials/ subdirectory has its own .gitignore that blocks
+# all files except *.example, README.md, and .gitignore itself.

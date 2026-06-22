@@ -1,0 +1,115 @@
+# ConsoleQuickStart template — copy this folder to create a new scenario.
+# Replace all placeholder values before applying to a cluster.
+#
+# Authoring guide: ../README.md
+# API reference:   https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/console_apis/consolequickstart-console-openshift-io-v1
+apiVersion: console.openshift.io/v1
+kind: ConsoleQuickStart
+metadata:
+  # Strong convention: match the scenario folder name (e.g. folder "deploy-from-git" → name "deploy-from-git").
+  # This is not enforced by OpenShift, but it keeps cluster resources easy to locate.
+  # WARNING: Never rename this field after the resource has been applied to a cluster.
+  # Renaming causes duplicates because the old resource is not removed automatically.
+  name: my-scenario-name
+  labels:
+    # Identifies this resource as part of the OpenShift QuickStarts project.
+    # Used by 'make list-cluster' and 'make status' to separate project-managed
+    # resources from built-in OpenShift quick starts.
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+spec:
+  # Title shown on the quick start card in the console.
+  displayName: My Scenario Title
+
+  # Short summary shown on the quick start card (markdown supported, ~160 chars).
+  description: Brief description of what the user will accomplish.
+
+  # Longer introduction shown in the side panel when the quick start opens (markdown).
+  # Explain what the user will learn and why it matters. List 2-4 key outcomes.
+  introduction: |-
+    Introduce the scenario here.
+
+    After completing this quick start, you will know how to:
+
+    - Outcome one
+    - Outcome two
+
+  # Estimated time to complete, in minutes. Typical range: 5–15 min.
+  # Overestimating is better than underestimating.
+  durationMinutes: 10
+
+  # Optional: search/filter tags. Use a product tag + a topic tag.
+  # See scenarios/README.md for tagging conventions.
+  tags:
+    - my-product
+    - getting-started
+
+  # Optional: prerequisites shown in the intro panel before the user begins (markdown).
+  # prerequisites: |-
+  #   - Cluster administrator access
+  #   - An existing project
+
+  # Optional: base64-encoded SVG icon (40×40 px recommended).
+  # icon: >-
+  #   data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmci...
+
+  # Optional: restrict visibility by RBAC. Quick start is hidden if any check fails.
+  # Test with a user who lacks these permissions to confirm it works.
+  # accessReviewResources:
+  #   - group: operators.coreos.com
+  #     resource: operatorgroups
+  #     verb: list
+  #   - group: packages.operators.coreos.com
+  #     resource: packagemanifests
+  #     verb: list
+
+  tasks:
+    - title: First task title
+      description: |-
+        Step-by-step instructions for this task.
+
+        1. If present, click the [perspective switcher]{{highlight qs-perspective-switcher}} and select the correct perspective.
+
+        1. In the main navigation, select [the relevant section]{{highlight qs-nav-home}}.
+
+        1. Perform the first action for this task.
+
+        1. Continue with further steps as needed.
+
+      review:
+        # Ask about an observable state, not whether the user performed a step.
+        # Phrase it so a successful outcome is a clear "Yes".
+        instructions: |-
+          Verify the outcome:
+
+          - Do you see [observable result of this task]?
+        failedTaskHelp: This task isn't verified yet. Try the task again, paying attention to step N.
+      summary:
+        success: First task completed successfully.
+        failed: Try the steps again.
+
+    - title: Second task title
+      description: |-
+        Step-by-step instructions for the second task.
+
+        1. In the main navigation, select [Workloads]{{highlight qs-nav-workloads}}.
+
+        1. Continue with scenario-specific steps.
+
+      review:
+        instructions: |-
+          Verify the outcome:
+
+          - Do you see [observable result of this task]?
+        failedTaskHelp: This task isn't verified yet. Try the task again.
+      summary:
+        success: Second task completed successfully.
+        failed: Try the steps again.
+
+  # Optional: wrap-up message shown on the final screen (markdown).
+  # Summarise what the user accomplished and suggest a next step.
+  conclusion: You completed this quick start. Summarise what the user accomplished here.
+
+  # Optional: link to follow-on quick starts using metadata.name (not displayName).
+  # nextQuickStart:
+  #   - another-scenario-name
