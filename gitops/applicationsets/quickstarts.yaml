@@ -1,0 +1,78 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: quickstarts
+  namespace: openshift-gitops
+spec:
+  generators:
+    - matrix:
+        generators:
+          # Pull cluster destinations from the RHACM Placement below.
+          # The acm-placement ConfigMap in openshift-gitops teaches the
+          # ApplicationSet controller how to read RHACM PlacementDecisions.
+          - clusterDecisionResource:
+              configMapRef: acm-placement
+              labelSelector:
+                matchLabels:
+                  cluster.open-cluster-management.io/placement: quickstarts-placement
+              requeueAfterSeconds: 30
+          # Auto-discover every scenario directory that has a kustomization.yaml.
+          # Adding a new scenario to Git automatically creates Applications on
+          # all clusters — no manual deploy step required.
+          - git:
+              repoURL: https://github.com/Caseraw/OpenShiftQuickStarts.git
+              directories:
+                - path: scenarios/*
+                - path: scenarios/_template
+                  exclude: true
+              revision: main
+              requeueAfterSeconds: 30
+  template:
+    metadata:
+      name: 'quickstart-{{name}}-{{path.basename}}'
+      labels:
+        app.kubernetes.io/part-of: openshift-quickstarts
+        velero.io/exclude-from-backup: "true"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/Caseraw/OpenShiftQuickStarts.git
+        targetRevision: main
+        path: '{{path}}'
+      destination:
+        server: '{{server}}'
+        namespace: openshift-gitops
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=false
+          - PruneLast=true
+---
+# Selects all OpenShift clusters registered in the global ManagedClusterSet.
+# Tolerations keep Applications alive even when a cluster is temporarily
+# unreachable or unavailable — prevents ArgoCD from pruning them on outage.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: quickstarts-placement
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+spec:
+  clusterSets:
+    - global
+  tolerations:
+    - key: cluster.open-cluster-management.io/unreachable
+      operator: Exists
+    - key: cluster.open-cluster-management.io/unavailable
+      operator: Exists
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: vendor
+              operator: In
+              values:
+                - OpenShift

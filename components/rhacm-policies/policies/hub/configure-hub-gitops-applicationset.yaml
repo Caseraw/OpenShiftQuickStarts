@@ -1,0 +1,187 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: configure-hub-gitops-applicationset
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: hub
+  annotations:
+    policy.open-cluster-management.io/description: >-
+      Configures the OpenShift GitOps ApplicationSet controller on the hub for
+      fleet-wide deployments using the RHACM clusterDecisionResource generator.
+      Applies three permanent fixes required for the ApplicationSet + RHACM pattern:
+        1. ClusterRole + ClusterRoleBinding granting the applicationset-controller
+           cluster-wide list/get/watch access to PlacementDecisions and PlacementRules
+           (the built-in Role is namespace-scoped only; the generator does a cluster-wide list).
+        2. ArgoCD application-controller memory increase from 2Gi to 4Gi to prevent
+           OOMKill when loading the OpenAPI schema from multiple large OCP clusters
+           simultaneously via cluster-proxy.
+        3. ArgoCD resource exclusions for RHACM, Hive, and high-churn resource types
+           (Events) to reduce the volume of resources the application-controller caches,
+           significantly lowering steady-state memory consumption.
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/controls: CM Baseline Configuration
+spec:
+  disabled: false
+  policy-templates:
+    # Fix 1: Grant the applicationset-controller cluster-wide access to
+    # PlacementDecisions. The clusterDecisionResource generator lists
+    # PlacementDecisions across all namespaces — the default Role in
+    # openshift-gitops is namespace-scoped only, so this ClusterRole is required.
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-hub-gitops-applicationset-rbac
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRole
+                metadata:
+                  name: openshift-gitops-applicationset-controller-placementdecisions
+                  labels:
+                    app.kubernetes.io/part-of: openshift-quickstarts
+                rules:
+                  - apiGroups:
+                      - cluster.open-cluster-management.io
+                    resources:
+                      - placementdecisions
+                    verbs:
+                      - list
+                      - get
+                      - watch
+                  - apiGroups:
+                      - apps.open-cluster-management.io
+                    resources:
+                      - placementrules
+                    verbs:
+                      - list
+                      - get
+                      - watch
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: openshift-gitops-applicationset-controller-placementdecisions
+                  labels:
+                    app.kubernetes.io/part-of: openshift-quickstarts
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: openshift-gitops-applicationset-controller-placementdecisions
+                subjects:
+                  - kind: ServiceAccount
+                    name: openshift-gitops-applicationset-controller
+                    namespace: openshift-gitops
+    # Fix 2 + 3: Increase app-controller memory to 4Gi and add resource exclusions
+    # for RHACM/Hive API groups and Events. This prevents OOMKill when the
+    # controller loads OpenAPI schemas from multiple large OCP clusters via
+    # cluster-proxy, and reduces steady-state cache size.
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-hub-gitops-applicationset-argocd
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: argoproj.io/v1alpha1
+                kind: ArgoCD
+                metadata:
+                  name: openshift-gitops
+                  namespace: openshift-gitops
+                spec:
+                  controller:
+                    resources:
+                      limits:
+                        memory: 4Gi
+                      requests:
+                        memory: 2Gi
+                  resourceExclusions: |
+                    - apiGroups:
+                      - "*"
+                      clusters:
+                      - "*"
+                      kinds:
+                      - Event
+                      - EventList
+                    - apiGroups:
+                      - hive.openshift.io
+                      clusters:
+                      - "*"
+                      kinds:
+                      - "*"
+                    - apiGroups:
+                      - internal.open-cluster-management.io
+                      clusters:
+                      - "*"
+                      kinds:
+                      - "*"
+                    - apiGroups:
+                      - cluster.open-cluster-management.io
+                      clusters:
+                      - "*"
+                      kinds:
+                      - "*"
+                    - apiGroups:
+                      - work.open-cluster-management.io
+                      clusters:
+                      - "*"
+                      kinds:
+                      - "*"
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: configure-hub-gitops-applicationset-placement
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: hub
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: local-cluster
+              operator: In
+              values:
+                - "true"
+            - key: name
+              operator: In
+              values:
+                - local-cluster
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: configure-hub-gitops-applicationset-placement
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: hub
+placementRef:
+  name: configure-hub-gitops-applicationset-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: configure-hub-gitops-applicationset
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy

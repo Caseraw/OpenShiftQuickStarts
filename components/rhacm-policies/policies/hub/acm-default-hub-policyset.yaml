@@ -13,6 +13,7 @@ metadata:
 spec:
   description: acm-default-hub-policyset
   policies:
+    - configure-hub-gitops-applicationset
     - configure-hub-gitops-cluster
 ---
 apiVersion: cluster.open-cluster-management.io/v1beta1
