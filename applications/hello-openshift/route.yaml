@@ -6,6 +6,9 @@ metadata:
   labels:
     app.kubernetes.io/name: hello-openshift
     app.kubernetes.io/part-of: openshift-quickstarts
+  annotations:
+    haproxy.router.openshift.io/balance: roundrobin
+    haproxy.router.openshift.io/disable_cookies: "true"
 spec:
   to:
     kind: Service
