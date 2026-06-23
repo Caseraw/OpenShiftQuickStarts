@@ -14,18 +14,9 @@ spec:
       ref: main
     contextDir: applications/hello-openshift/src
   strategy:
-    type: Source
-    sourceStrategy:
-      from:
-        kind: ImageStreamTag
-        namespace: openshift
-        name: python:3.11-ubi9
-      env:
-        # Tell the S2I Python builder which WSGI callable to serve.
-        - name: APP_MODULE
-          value: "app:app"
-        - name: APP_PORT
-          value: "8080"
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
   output:
     to:
       kind: ImageStreamTag
