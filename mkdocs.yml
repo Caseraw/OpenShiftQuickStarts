@@ -25,8 +25,6 @@ theme:
   font:
     text: Red Hat Display
     code: Red Hat Mono
-  logo: material/rocket-launch
-  favicon: material/rocket-launch
   features:
     - navigation.tabs
     - navigation.tabs.sticky
@@ -75,9 +73,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started: getting-started.md
-  - Scenarios:
-    - scenarios/index.md
+  - Workshop: workshop.md
 
 extra:
   social:
