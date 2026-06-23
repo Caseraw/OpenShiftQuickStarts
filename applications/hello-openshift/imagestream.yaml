@@ -1,0 +1,11 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: hello-openshift
+  namespace: hello-openshift
+  labels:
+    app.kubernetes.io/name: hello-openshift
+    app.kubernetes.io/part-of: openshift-quickstarts
+spec:
+  lookupPolicy:
+    local: true

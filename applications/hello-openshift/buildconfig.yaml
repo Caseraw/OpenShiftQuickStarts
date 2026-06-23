@@ -1,0 +1,37 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: hello-openshift
+  namespace: hello-openshift
+  labels:
+    app.kubernetes.io/name: hello-openshift
+    app.kubernetes.io/part-of: openshift-quickstarts
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/Caseraw/OpenShiftQuickStarts.git
+      ref: main
+    contextDir: applications/hello-openshift/src
+  strategy:
+    type: Source
+    sourceStrategy:
+      from:
+        kind: ImageStreamTag
+        namespace: openshift
+        name: python:3.11-ubi9
+      env:
+        # Tell the S2I Python builder which WSGI callable to serve.
+        - name: APP_MODULE
+          value: "app:app"
+        - name: APP_PORT
+          value: "8080"
+  output:
+    to:
+      kind: ImageStreamTag
+      name: hello-openshift:latest
+  triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChange: {}
+  runPolicy: Serial

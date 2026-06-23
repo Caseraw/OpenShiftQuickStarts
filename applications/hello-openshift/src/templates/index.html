@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hello OpenShift</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Red Hat Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f0f0f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #1b1d21;
+      border-bottom: 3px solid #ee0000;
+      padding: 0.9rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    header .wordmark {
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    header .sep { color: #555; }
+    header .subtitle { color: #aaa; font-size: 0.9rem; }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      max-width: 680px;
+      width: 100%;
+      margin: 3.5rem auto;
+      padding: 0 1.5rem;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .hero h1 {
+      font-size: 2rem;
+      color: #1b1d21;
+      font-weight: 700;
+    }
+    .hero h1 .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #3e8635;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .hero p {
+      margin-top: 0.5rem;
+      color: #666;
+      font-size: 0.95rem;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.45; transform: scale(0.85); }
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+    .card-header {
+      background: #1b1d21;
+      color: #fff;
+      padding: 0.65rem 1.2rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .row {
+      display: flex;
+      align-items: baseline;
+      padding: 0.85rem 1.2rem;
+      border-bottom: 1px solid #f2f2f2;
+      gap: 1rem;
+    }
+    .row:last-child { border-bottom: none; }
+    .label {
+      flex: 0 0 120px;
+      color: #888;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .value {
+      color: #1b1d21;
+      font-family: 'Red Hat Mono', 'Courier New', monospace;
+      font-size: 0.88rem;
+      word-break: break-all;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: #bbb;
+      font-size: 0.78rem;
+    }
+    footer span { color: #ee0000; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="wordmark">OpenShift Quick Starts</span>
+    <span class="sep">/</span>
+    <span class="subtitle">hello-openshift</span>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1><span class="dot"></span>Hello, OpenShift!</h1>
+      <p>This application is live and running on your cluster.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Pod Information</div>
+      <div class="row">
+        <span class="label">Pod Name</span>
+        <span class="value">{{ pod_name }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Namespace</span>
+        <span class="value">{{ namespace }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Node</span>
+        <span class="value">{{ node_name }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Pod IP</span>
+        <span class="value">{{ pod_ip }}</span>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Built with <span>OpenShift S2I</span> · Python · Flask
+  </footer>
+
+</body>
+</html>
