@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-postgresql
+  labels:
+    app.kubernetes.io/name: todo-postgresql
+  annotations:
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"ImageStreamTag","name":"todo-postgresql:latest","namespace":"todo-postgresql"},"fieldPath":"spec.template.spec.containers[?(@.name==\"todo-postgresql\")].image"}]
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: todo-postgresql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: todo-postgresql
+    spec:
+      containers:
+        - name: todo-postgresql
+          image: quay.io/rh-ee-kamirsar/2-tier-to-do-app:postgresql-0.1.1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5432
+              name: todo-postgresql
+          envFrom:
+            - secretRef:
+                name: todo-postgresql
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          startupProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - todo
+                - -d
+                - todos
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - todo
+                - -d
+                - todos
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - todo
+                - -d
+                - todos
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: todo-postgresql

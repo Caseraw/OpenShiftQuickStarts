@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: todo-postgresql
+  labels:
+    app.kubernetes.io/name: todo-postgresql
+    app.kubernetes.io/part-of: 2-tier-todo-app

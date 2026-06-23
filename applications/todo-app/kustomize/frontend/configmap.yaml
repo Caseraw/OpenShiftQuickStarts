@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-frontend
+  labels:
+    app.kubernetes.io/name: todo-frontend
+data:
+  # OpenShift Service DNS for the on-prem PostgreSQL backend.
+  # Same cluster:  todo-postgresql.todo-postgresql.svc.cluster.local
+  # Cross-cluster: use the hostname your hybrid network or multi-cluster
+  #               service setup exposes (for example *.svc.clusterset.local).
+  DB_HOST: todo-postgresql.todo-postgresql.svc.cluster.local
+  #DB_HOST: todo-postgresql.todo-postgresql.svc.clusterset.local
+  #DB_HOST: todo-postgresql-todo-postgresql.apps.cluster-01.sandbox551.opentlc.com
+  DB_PORT: "5432"
+  DB_NAME: todos
+  DB_USER: todo
+  # Optional when connecting over TLS: require, prefer, disable, etc.
+  DB_SSLMODE: disable

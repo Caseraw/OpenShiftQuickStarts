@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: todo-frontend
+  labels:
+    app.kubernetes.io/name: todo-frontend
+spec:
+  to:
+    kind: Service
+    name: todo-frontend
+    weight: 100
+  port:
+    targetPort: todo-frontend
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: todo-frontend
+  labels:
+    app.kubernetes.io/name: todo-frontend
+    app.kubernetes.io/part-of: 2-tier-todo-app

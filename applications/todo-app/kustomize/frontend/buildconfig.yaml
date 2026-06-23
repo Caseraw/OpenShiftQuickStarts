@@ -1,0 +1,21 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: todo-frontend
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/Caseraw/OpenShiftQuickStarts.git
+      ref: main
+    contextDir: applications/todo-app/src/frontend
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: todo-frontend:latest
+  triggers:
+    - type: ConfigChange

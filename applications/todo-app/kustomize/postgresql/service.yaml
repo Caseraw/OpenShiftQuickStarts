@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-postgresql
+  labels:
+    app.kubernetes.io/name: todo-postgresql
+spec:
+  selector:
+    app.kubernetes.io/name: todo-postgresql
+  ports:
+    - name: todo-postgresql
+      port: 5432
+      targetPort: todo-postgresql

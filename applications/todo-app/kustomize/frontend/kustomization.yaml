@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: todo-frontend
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - imagestream.yaml
+  - buildconfig.yaml
+  - deployment.yaml
+  - service.yaml
+  - route.yaml
+
+images:
+  - name: quay.io/rh-ee-kamirsar/2-tier-to-do-app
+    newName: image-registry.openshift-image-registry.svc:5000/todo-frontend/todo-frontend
+    newTag: latest
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: todo-frontend
+      app.kubernetes.io/part-of: 2-tier-todo-app
+      app.kubernetes.io/component: frontend
+    includeSelectors: true

@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: todo-postgresql
+
+resources:
+  - namespace.yaml
+  - secret.yaml
+  - pvc.yaml
+  - imagestream.yaml
+  - buildconfig.yaml
+  - deployment.yaml
+  - service.yaml
+  # - serviceexport.yaml
+  # - route.yaml
+
+images:
+  - name: quay.io/rh-ee-kamirsar/2-tier-to-do-app
+    newName: image-registry.openshift-image-registry.svc:5000/todo-postgresql/todo-postgresql
+    newTag: latest
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: todo-postgresql
+      app.kubernetes.io/part-of: 2-tier-todo-app
+      app.kubernetes.io/component: postgresql
+    includeSelectors: true
