@@ -91,6 +91,7 @@ COMPONENTS=(
   "components/rhacm"
   "components/rhacm-policies"
   "components/rhacm-observability"
+  "components/gitops"
 )
 
 # ---------------------------------------------------------------------------
@@ -155,6 +156,27 @@ ENV_FILE="${ENV_DIR}/env.sh"
 if [ -f "$ENV_FILE" ]; then
   # shellcheck source=/dev/null
   source "$ENV_FILE"
+fi
+
+# ---------------------------------------------------------------------------
+# Ensure we are logged into the HUB — always, regardless of current context.
+# Without this, whatever cluster was last used by 'oc login' becomes the
+# deployment target, which causes components to be installed on the wrong cluster.
+# ---------------------------------------------------------------------------
+if [ -n "${HUB_API_URL:-}" ] && [ -n "${HUB_USERNAME:-}" ] && [ -n "${HUB_PASSWORD:-}" ]; then
+  echo ""
+  echo -e "  ${BOLD}Logging into hub cluster…${RESET}"
+  if ! oc login "${HUB_API_URL}" \
+        -u "${HUB_USERNAME}" \
+        -p "${HUB_PASSWORD}" \
+        --insecure-skip-tls-verify \
+        &>/dev/null; then
+    echo -e "  ${RED}ERROR: Failed to log into hub cluster: ${HUB_API_URL}${RESET}"
+    echo -e "  ${RED}       Check HUB_API_URL, HUB_USERNAME, HUB_PASSWORD in env.sh${RESET}"
+    exit 1
+  fi
+else
+  echo -e "  ${YELLOW}WARN: HUB_API_URL/HUB_USERNAME/HUB_PASSWORD not set — using current oc context.${RESET}"
 fi
 
 # ---------------------------------------------------------------------------

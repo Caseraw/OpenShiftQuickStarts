@@ -1,0 +1,67 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: configure-hub-search-storage
+  namespace: acm-default-hub-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: hub
+  annotations:
+    policy.open-cluster-management.io/description: >-
+      Configures persistent storage for the RHACM Search component on the hub.
+      By default, the Search operator's PostgreSQL database uses emptyDir (ephemeral)
+      storage, which triggers the SearchPVCNotPresentCritical alert under load. This
+      policy patches the Search CR to use an ODF RBD PVC (10Gi, Immediate binding mode)
+      so data survives pod restarts and the alert clears.
+spec:
+  disabled: false
+  remediationAction: enforce
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-hub-search-storage
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: search.open-cluster-management.io/v1alpha1
+                kind: Search
+                metadata:
+                  name: search-v2-operator
+                  namespace: open-cluster-management
+                spec:
+                  dbStorage:
+                    size: 10Gi
+                    storageClassName: ocs-external-storagecluster-ceph-rbd-immediate
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: configure-hub-search-storage-placement
+  namespace: acm-default-hub-policies
+spec:
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            local-cluster: "true"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: configure-hub-search-storage-placement
+  namespace: acm-default-hub-policies
+placementRef:
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+  name: configure-hub-search-storage-placement
+subjects:
+  - apiGroup: policy.open-cluster-management.io
+    kind: Policy
+    name: configure-hub-search-storage

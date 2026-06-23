@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: quickstarts-hub
+  namespace: openshift-gitops
+spec:
+  generators:
+    # Auto-discover every scenario directory that has a kustomization.yaml.
+    # The hub cluster uses the direct in-cluster endpoint (kubernetes.default.svc)
+    # instead of going through the cluster-proxy addon (which only works for
+    # remote/spoke clusters — not the hub itself).
+    - git:
+        repoURL: https://github.com/Caseraw/OpenShiftQuickStarts.git
+        directories:
+          - path: scenarios/*
+          - path: scenarios/_template
+            exclude: true
+        revision: main
+        requeueAfterSeconds: 30
+  template:
+    metadata:
+      name: 'quickstart-hub-{{path.basename}}'
+      labels:
+        app.kubernetes.io/part-of: openshift-quickstarts
+        velero.io/exclude-from-backup: "true"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/Caseraw/OpenShiftQuickStarts.git
+        targetRevision: main
+        path: '{{path}}'
+      destination:
+        # Use in-cluster endpoint directly — avoids the cluster-proxy ANP issue
+        # that affects the local-cluster registration in the GitOpsCluster CR.
+        server: https://kubernetes.default.svc
+        namespace: openshift-gitops
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=false
+          - PruneLast=true

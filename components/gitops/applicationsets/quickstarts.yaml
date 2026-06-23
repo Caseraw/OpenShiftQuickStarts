@@ -76,3 +76,11 @@ spec:
               operator: In
               values:
                 - OpenShift
+            # Exclude the hub (local-cluster) — the cluster-proxy addon's ANP
+            # agent does not run for the hub because the hub IS the cluster.
+            # The hub is covered by the quickstarts-hub ApplicationSet instead,
+            # which uses the direct in-cluster endpoint (kubernetes.default.svc).
+            - key: local-cluster
+              operator: NotIn
+              values:
+                - "true"
