@@ -162,11 +162,9 @@ In this part you will deploy the same application as an ArgoCD **Application** r
 
 The todo-app is split into two separate ArgoCD Applications — one per tier — each pointing to its own Kustomize directory. Both manifests live in a single file in the repository.
 
-Open the file in the web terminal or IDE:
+Review the file on GitHub before applying it:
 
-```
-applications/todo-app/argocd/application.yaml
-```
+:material-github: [applications/todo-app/argocd/application.yaml](https://github.com/Caseraw/OpenShiftQuickStarts/blob/main/applications/todo-app/argocd/application.yaml)
 
 The file contains two `Application` resources. Key fields to note in each:
 
