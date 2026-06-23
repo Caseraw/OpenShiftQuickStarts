@@ -11,8 +11,6 @@ resources:
   - buildconfig.yaml
   - deployment.yaml
   - service.yaml
-  # - serviceexport.yaml
-  # - route.yaml
 
 images:
   - name: quay.io/rh-ee-kamirsar/2-tier-to-do-app
