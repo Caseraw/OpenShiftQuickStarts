@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: todo-app-postgresql
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/name: todo-app-postgresql
+    app.kubernetes.io/part-of: openshift-quickstarts
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Caseraw/OpenShiftQuickStarts.git
+    targetRevision: main
+    path: applications/todo-app/kustomize/postgresql
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: todo-postgresql
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: todo-app-frontend
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/name: todo-app-frontend
+    app.kubernetes.io/part-of: openshift-quickstarts
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Caseraw/OpenShiftQuickStarts.git
+    targetRevision: main
+    path: applications/todo-app/kustomize/frontend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: todo-frontend
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - PruneLast=true

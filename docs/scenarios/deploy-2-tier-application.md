@@ -1,8 +1,11 @@
 # Deploy a 2-Tier Example Application
 
-In this scenario you will deploy **Sweep Dreams** — a 2-tier web application consisting of a **Flask frontend** and a **PostgreSQL backend**. The two tiers run in separate namespaces and communicate over the cluster's internal DNS, which is the standard pattern for multi-component applications on OpenShift.
+In this scenario you will deploy **Sweep Dreams** — a 2-tier web application consisting of a **Flask frontend** and a **PostgreSQL backend**. The two tiers run in separate namespaces and communicate over the cluster's internal DNS.
 
-You will deploy the entire application with a single command from the OpenShift web terminal.
+You will deploy the application **twice**, using two different approaches:
+
+1. **Part 1 — OpenShift CLI:** deploy directly from the web terminal with a single `oc apply -k` command.
+2. **Part 2 — ArgoCD Application:** deploy the same app as a GitOps Application, letting ArgoCD continuously sync the desired state from Git.
 
 ---
 
@@ -12,7 +15,8 @@ You will deploy the entire application with a single command from the OpenShift 
 - How inter-service communication works via OpenShift cluster DNS
 - How Kustomize manages multiple related components in one apply
 - How on-cluster builds work for both tiers simultaneously
-- How to monitor builds and deployments for a multi-component application
+- How to deploy an application as an ArgoCD GitOps Application
+- The difference between a direct CLI deploy and a GitOps-managed deploy
 
 ---
 
@@ -45,16 +49,18 @@ graph LR
 
 ---
 
-## Step 1 — Open the web terminal
+## Part 1 — OpenShift CLI
+
+### Step 1 — Open the web terminal
 
 1. In the top-right toolbar of the Web Console, click the **Command Line** icon ( `>_` ).
 2. A terminal panel opens at the bottom of the screen. Wait a moment for it to initialise.
 
 ---
 
-## Step 2 — Deploy the application
+### Step 2 — Deploy the application
 
-Run the following commands one by one in the terminal:
+Run the following commands one by one:
 
 **Clone the repository:**
 ```bash
@@ -92,20 +98,13 @@ route.route.openshift.io/todo-frontend created
 ```
 
 !!! info "What does `oc apply -k .` do here?"
-    Kustomize reads the top-level `kustomization.yaml`, which references both the `kustomize/postgresql` and `kustomize/frontend` directories. All 15 resources across both namespaces are applied in a single operation — no manual ordering or looping required.
+    Kustomize reads the top-level `kustomization.yaml`, which references both the `kustomize/postgresql` and `kustomize/frontend` directories. All resources across both namespaces are applied in a single operation.
 
 ---
 
-## Step 3 — Monitor the builds
+### Step 3 — Monitor the builds
 
-Both tiers trigger an on-cluster Docker build immediately after their BuildConfig is created. The builds run in parallel.
-
-1. Switch to the **Core platform** perspective.
-2. Open **Workloads** / **Topology** in the left navigation bar.
-3. Use the **Project** dropdown to select `todo-postgresql`. You will see the PostgreSQL build running.
-4. Switch the project to `todo-frontend` to see the frontend build.
-
-To watch build logs for each tier:
+Both tiers trigger an on-cluster Docker build immediately. To follow the logs:
 
 ```bash
 oc logs -n todo-postgresql build/todo-postgresql-1 -f
@@ -116,32 +115,11 @@ oc logs -n todo-frontend build/todo-frontend-1 -f
 ```
 
 !!! info "Build duration"
-    Each build takes **2–5 minutes**. The PostgreSQL image installs the init scripts; the frontend installs Python dependencies via pip.
+    Each build takes **2–5 minutes**. Both run in parallel.
 
 ---
 
-## Step 4 — Wait for the deployments
-
-Once each build completes, the ImageStream trigger fires and the Deployment rolls out automatically.
-
-Check the pod status for both tiers:
-
-```bash
-oc get pods -n todo-postgresql
-oc get pods -n todo-frontend
-```
-
-Wait until both show `1/1 Running`:
-
-```
-NAME                              READY   STATUS    RESTARTS   AGE
-todo-postgresql-xxx               1/1     Running   0          2m
-
-NAME                          READY   STATUS    RESTARTS   AGE
-todo-frontend-xxx             1/1     Running   0          1m
-```
-
-You can also watch the rollout directly:
+### Step 4 — Wait for the deployments
 
 ```bash
 oc rollout status deployment/todo-postgresql -n todo-postgresql
@@ -150,24 +128,138 @@ oc rollout status deployment/todo-frontend -n todo-frontend
 
 ---
 
-## Step 5 — Access the application
-
-Retrieve the Route URL:
+### Step 5 — Access the application
 
 ```bash
 oc get route todo-frontend -n todo-frontend -o jsonpath='{.spec.host}'
 ```
 
-Open the URL in your browser (it will be an `https://` address). You should see the **Sweep Dreams** todo list pre-loaded with five sample tasks.
+Open the URL in your browser. You should see the **Sweep Dreams** todo list pre-loaded with five sample tasks. Try adding, completing, and deleting tasks to confirm end-to-end connectivity with PostgreSQL.
 
-Try the following actions to confirm everything works end to end:
+!!! success "Part 1 complete"
+    You have deployed a 2-tier application across two namespaces using the CLI. Continue to Part 2 to deploy the same application using ArgoCD.
 
-- [x] **Add a task** — type a description and click **Add task**. The item appears in the list and is stored in PostgreSQL.
-- [x] **Complete a task** — click the circle checkbox next to any item. It turns green and the title gets a strikethrough.
-- [x] **Delete a task** — click the trash icon on the right of any item to remove it permanently.
+---
+
+### Clean up — Delete the application
+
+Before continuing to Part 2, remove the application by deleting both namespaces:
+
+```bash
+oc delete namespace todo-frontend todo-postgresql
+```
+
+!!! warning "Required before continuing"
+    Part 2 will recreate the same namespaces. Deleting them first avoids resource conflicts.
+
+---
+
+## Part 2 — ArgoCD Application
+
+In this part you will deploy the same application as an ArgoCD **Application** resource. ArgoCD continuously watches the Git repository and keeps the cluster in sync with the desired state defined there.
+
+### Step 1 — Review the Application manifests
+
+The todo-app is split into two separate ArgoCD Applications — one per tier — each pointing to its own Kustomize directory. Both manifests live in a single file in the repository.
+
+Open the file in the web terminal or IDE:
+
+```
+applications/todo-app/argocd/application.yaml
+```
+
+The file contains two `Application` resources. Key fields to note in each:
+
+```yaml
+# PostgreSQL tier
+spec:
+  source:
+    path: applications/todo-app/kustomize/postgresql
+  destination:
+    server: https://kubernetes.default.svc   # in-cluster — applied on the Spoke directly
+    namespace: todo-postgresql
+
+# Frontend tier
+spec:
+  source:
+    path: applications/todo-app/kustomize/frontend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: todo-frontend
+```
+
+Both Applications share the same `syncPolicy`:
+
+```yaml
+syncPolicy:
+  automated:
+    prune: true     # removes resources deleted from Git
+    selfHeal: true  # reverts manual changes to match Git
+```
+
+!!! info "Why two Applications instead of one?"
+    Each tier is an independent deployable unit with its own namespace, lifecycle, and health status. Splitting them gives ArgoCD a clearer view of each tier's sync and health state, and allows rolling out changes to one tier without touching the other.
+
+!!! info "How this differs from Part 1"
+    In Part 1 you ran `oc apply -k .` once — a one-shot imperative deploy.
+    Here ArgoCD watches the Git repository continuously. If you change a manifest in Git, ArgoCD detects the drift and reconciles the cluster automatically. If you manually change a resource on the cluster, `selfHeal` reverts it back to the Git state.
+
+---
+
+### Step 2 — Apply the Application manifests
+
+The manifests use `https://kubernetes.default.svc` as the destination server, so they must be applied **on the Spoke cluster where the app will run** — not on the Hub.
+
+In the web terminal (make sure you are logged into your Spoke cluster):
+
+**If you do not have the repository cloned yet:**
+```bash
+git clone https://github.com/Caseraw/OpenShiftQuickStarts.git
+cd OpenShiftQuickStarts
+```
+
+**Apply both ArgoCD Applications:**
+```bash
+oc apply -f applications/todo-app/argocd/application.yaml
+```
+
+You should see:
+
+```
+application.argoproj.io/todo-app-postgresql created
+application.argoproj.io/todo-app-frontend created
+```
+
+---
+
+### Step 3 — Watch ArgoCD sync the application
+
+ArgoCD will immediately start syncing the `applications/todo-app` path to the cluster.
+
+1. Open the **ArgoCD UI** — retrieve the URL with:
+   ```bash
+   oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='{.spec.host}'
+   ```
+2. Log in and find the **todo-app-postgresql** and **todo-app-frontend** Application tiles.
+3. Watch each status progress from `OutOfSync` → `Syncing` → `Synced`.
+4. Click a tile to open the Application graph and see all resources being created for that tier.
+
+Both on-cluster builds will start automatically as soon as the BuildConfigs are applied by ArgoCD. The Deployments roll out once the builds complete, just as in Part 1.
+
+---
+
+### Step 4 — Access the application
+
+Retrieve the Route from the cluster:
+
+```bash
+oc get route todo-frontend -n todo-frontend -o jsonpath='{.spec.host}'
+```
+
+Open the URL in your browser and verify the application is working.
 
 !!! success "Scenario complete"
-    You have deployed a 2-tier application across two namespaces, built both images on-cluster, and verified end-to-end connectivity between the frontend and the PostgreSQL database.
+    You have deployed the same 2-tier application using two approaches — direct CLI and GitOps via ArgoCD. The end result is identical, but ArgoCD continuously enforces the desired state from Git, turning your repository into the single source of truth for the cluster.
 
 ---
 
@@ -175,36 +267,36 @@ Try the following actions to confirm everything works end to end:
 
 ```mermaid
 sequenceDiagram
-    participant You
-    participant OC as oc apply -k
+    participant Git as Git Repository
+    participant Argo as ArgoCD (Hub)
     participant PG_BC as BuildConfig (postgresql)
     participant FE_BC as BuildConfig (frontend)
     participant IS as ImageStream (each tier)
     participant Deploy as Deployment (each tier)
 
-    You->>OC: oc apply -k .
-    OC->>PG_BC: Create PostgreSQL resources
-    OC->>FE_BC: Create Frontend resources
+    Git->>Argo: Application resource created
+    Argo->>Argo: Detect OutOfSync — path applications/todo-app
+    Argo->>PG_BC: Apply PostgreSQL resources to Spoke Cluster
+    Argo->>FE_BC: Apply Frontend resources to Spoke Cluster
     par PostgreSQL build
-        PG_BC->>PG_BC: Clone repo → Docker build → push
-        PG_BC->>IS: Push to todo-postgresql ImageStream
+        PG_BC->>IS: Build & push todo-postgresql image
         IS-->>Deploy: Trigger rollout (postgresql)
     and Frontend build
-        FE_BC->>FE_BC: Clone repo → Docker build → push
-        FE_BC->>IS: Push to todo-frontend ImageStream
+        FE_BC->>IS: Build & push todo-frontend image
         IS-->>Deploy: Trigger rollout (frontend)
     end
-    Deploy-->>You: Both pods Running — app accessible via Route
+    Deploy-->>Argo: Resources healthy — Application Synced
+    Argo-->>Git: Continuously watching for drift
 ```
 
 ---
 
 ## Clean up (optional)
 
-To remove the application, delete both namespaces:
+To remove both ArgoCD Applications and all resources they manage:
 
 ```bash
-oc delete namespace todo-frontend todo-postgresql
+oc delete application todo-app-postgresql todo-app-frontend -n openshift-gitops
 ```
 
-This removes all resources in both namespaces including the PVC and its data.
+ArgoCD will prune all resources it created (both namespaces and everything inside them) before removing the Application objects.
