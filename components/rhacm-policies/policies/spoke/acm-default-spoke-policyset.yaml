@@ -1,0 +1,55 @@
+apiVersion: policy.open-cluster-management.io/v1beta1
+kind: PolicySet
+metadata:
+  name: acm-default-spoke-policyset
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: spoke
+  annotations:
+    policy.open-cluster-management.io/description: acm-default-spoke-policyset
+spec:
+  description: acm-default-spoke-policyset
+  policies:
+    - configure-openshift-virt
+    - install-openshift-virt
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: acm-default-spoke-policyset-placement
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: local-cluster
+              operator: NotIn
+              values:
+                - "true"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: acm-default-spoke-policyset-placement
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+placementRef:
+  name: acm-default-spoke-policyset-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: acm-default-spoke-policyset
+    apiGroup: policy.open-cluster-management.io
+    kind: PolicySet

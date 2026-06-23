@@ -1,0 +1,123 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: configure-openshift-virt
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: spoke
+  annotations:
+    policy.open-cluster-management.io/description: >-
+      Activates OpenShift Virtualization on Spoke clusters by creating the
+      HyperConverged instance CR. This triggers the operator to deploy all
+      Virtualization components (KubeVirt, CDI, SSP, etc.).
+      Prerequisite: install-openshift-virt must be Compliant first.
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/controls: CM Baseline Configuration
+spec:
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: configure-openshift-virt-hyperconverged
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: hco.kubevirt.io/v1beta1
+                kind: HyperConverged
+                metadata:
+                  name: kubevirt-hyperconverged
+                  namespace: openshift-cnv
+                  annotations:
+                    deployOVS: 'false'
+                spec:
+                  enableCommonBootImageImport: true
+                  virtualMachineOptions:
+                    disableFreePageReporting: false
+                    disableSerialConsoleLog: false
+                  higherWorkloadDensity:
+                    memoryOvercommitPercentage: 100
+                  liveMigrationConfig:
+                    allowAutoConverge: false
+                    allowPostCopy: false
+                    completionTimeoutPerGiB: 150
+                    parallelMigrationsPerCluster: 5
+                    parallelOutboundMigrationsPerNode: 2
+                    progressTimeout: 150
+                  certConfig:
+                    ca:
+                      duration: 48h0m0s
+                      renewBefore: 24h0m0s
+                    server:
+                      duration: 24h0m0s
+                      renewBefore: 12h0m0s
+                  enableApplicationAwareQuota: false
+                  applicationAwareConfig:
+                    allowApplicationAwareClusterResourceQuota: false
+                    vmiCalcConfigName: DedicatedVirtualResources
+                  featureGates:
+                    enableMultiArchBootImageImport: false
+                    downwardMetrics: false
+                    disableMDevConfiguration: false
+                    declarativeHotplugVolumes: false
+                    deployKubeSecondaryDNS: false
+                    objectGraph: false
+                    alignCPUs: false
+                    persistentReservation: false
+                    videoConfig: true
+                    decentralizedLiveMigration: false
+                  workloadUpdateStrategy:
+                    batchEvictionInterval: 1m0s
+                    batchEvictionSize: 10
+                    workloadUpdateMethods:
+                      - LiveMigrate
+                  deployVmConsoleProxy: false
+                  uninstallStrategy: BlockUninstallIfWorkloadsExist
+                  resourceRequirements:
+                    vmiCPUAllocationRatio: 10
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: configure-openshift-virt-placement
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: local-cluster
+              operator: NotIn
+              values:
+                - "true"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: configure-openshift-virt-placement
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+placementRef:
+  name: configure-openshift-virt-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: configure-openshift-virt
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy

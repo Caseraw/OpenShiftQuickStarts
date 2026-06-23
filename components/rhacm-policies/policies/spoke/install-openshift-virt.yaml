@@ -1,0 +1,80 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: install-openshift-virt
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+    rhacm-policies/scope: spoke
+  annotations:
+    policy.open-cluster-management.io/description: install-openshift-virt
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/controls: CM Baseline Configuration
+spec:
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1beta1
+        kind: OperatorPolicy
+        metadata:
+          name: install-openshift-virt
+        spec:
+          remediationAction: enforce
+          severity: high
+          complianceType: musthave
+          subscription:
+            name: kubevirt-hyperconverged
+            namespace: openshift-cnv
+            channel: stable
+            source: redhat-operators
+            sourceNamespace: openshift-marketplace
+          # OpenShift Virtualization requires a single-namespace OperatorGroup
+          # scoped to openshift-cnv. RHACM OperatorPolicy creates it automatically.
+          operatorGroup:
+            name: openshift-cnv
+            namespace: openshift-cnv
+            targetNamespaces:
+              - openshift-cnv
+          upgradeApproval: Automatic
+          versions: []
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: install-openshift-virt-placement
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+spec:
+  tolerations: []
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: local-cluster
+              operator: NotIn
+              values:
+                - "true"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: install-openshift-virt-placement
+  namespace: acm-default-spoke-policies
+  labels:
+    app.kubernetes.io/part-of: openshift-quickstarts
+    app.kubernetes.io/managed-by: openshift-quickstarts
+    app.kubernetes.io/component: rhacm-policies
+placementRef:
+  name: install-openshift-virt-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: install-openshift-virt
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy
