@@ -15,6 +15,11 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: todo-postgresql
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .spec.template.spec.containers[].image
   syncPolicy:
     automated:
       prune: true
@@ -40,6 +45,11 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: todo-frontend
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .spec.template.spec.containers[].image
   syncPolicy:
     automated:
       prune: true
