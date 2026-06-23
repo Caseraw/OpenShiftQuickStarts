@@ -72,11 +72,16 @@ echo "  Cluster: $(oc whoami --show-server)"
 echo "  User:    $(oc whoami)"
 echo ""
 
-# ─── Apply manifests ─────────────────────────────────────────────────────────
-echo -e "${CYAN}── Applying manifests ──${NC}"
+# ─── Apply build resources first ─────────────────────────────────────────────
+# Namespace, ImageStream, and BuildConfig are applied first so the S2I build
+# can run and push the image before the Deployment tries to pull it.
+# This avoids an ImagePullBackOff on the initial pod.
+echo -e "${CYAN}── Applying build resources ──${NC}"
 echo ""
 
-oc apply -k "${APP_DIR}"
+oc apply -f "${APP_DIR}/namespace.yaml"
+oc apply -f "${APP_DIR}/imagestream.yaml"
+oc apply -f "${APP_DIR}/buildconfig.yaml"
 
 echo ""
 
@@ -127,6 +132,16 @@ if [[ "${BUILD_PHASE}" != "Complete" ]]; then
   exit 1
 fi
 success "Build complete: ${BUILD_NAME}"
+echo ""
+
+# ─── Apply remaining resources now that the image exists ─────────────────────
+echo -e "${CYAN}── Applying remaining manifests ──${NC}"
+echo ""
+
+oc apply -f "${APP_DIR}/deployment.yaml"
+oc apply -f "${APP_DIR}/service.yaml"
+oc apply -f "${APP_DIR}/route.yaml"
+
 echo ""
 
 # ─── Wait for Deployment rollout ─────────────────────────────────────────────
