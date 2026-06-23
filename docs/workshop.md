@@ -11,14 +11,6 @@ Welcome to the workshop. Below you will find all available scenarios. Each one i
 
 <div class="grid cards" markdown>
 
--   :material-monitor-dashboard:{ .lg .middle } **OpenShift Web Console**
-
-    ---
-
-    Quick overview to get to know the graphical user interface.
-
-    [:octicons-arrow-right-24: Start scenario](scenarios/openshift-web-console.md)
-
 -   :material-application:{ .lg .middle } **Deploy an Example Application**
 
     ---
