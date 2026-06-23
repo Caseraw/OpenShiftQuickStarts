@@ -44,17 +44,18 @@ replicas and refresh the page to see different pods respond.
 
 ---
 
-## Lifecycle
+## Deploy
+
+Apply all manifests with Kustomize from the repo root:
 
 ```bash
-# Deploy (build + rollout)
-bash applications/hello-openshift/scripts/deploy.sh
+oc apply -k applications/hello-openshift/
+```
 
-# Rebuild after source changes
-bash applications/hello-openshift/scripts/update.sh
+To remove the application, delete the namespace:
 
-# Remove everything
-bash applications/hello-openshift/scripts/cleanup.sh
+```bash
+oc delete namespace hello-openshift
 ```
 
 ---

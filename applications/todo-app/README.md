@@ -66,51 +66,20 @@ todo-app/
 │       └── init/
 │           ├── 01-schema.sql   # Creates the todos table
 │           └── 02-seed.sql     # Inserts sample data
-└── scripts/
-    ├── deploy.sh               # Full deploy: build → wait → rollout
-    ├── reset.sh                # Truncate todos table and re-seed
-    ├── update.sh               # Trigger new builds and wait for rollout
-    └── cleanup.sh              # Delete both namespaces
 ```
 
-## Lifecycle
+## Deploy
 
-### Deploy
-
-Applies both tiers in order, waits for builds, and waits for rollouts:
+Apply all manifests with Kustomize from the repo root:
 
 ```bash
-bash scripts/deploy.sh
+oc apply -k applications/todo-app/
 ```
 
-Or via Kustomize directly (builds trigger automatically, deployments roll out via ImageStream):
+To remove the application, delete both namespaces:
 
 ```bash
-oc apply -k .
-```
-
-### Reset
-
-Truncates the `todos` table and re-inserts seed data. The application keeps running:
-
-```bash
-bash scripts/reset.sh
-```
-
-### Update
-
-Triggers new image builds for both tiers and waits for rolling deployments:
-
-```bash
-bash scripts/update.sh
-```
-
-### Cleanup
-
-Deletes both namespaces and all resources within them:
-
-```bash
-bash scripts/cleanup.sh
+oc delete namespace todo-frontend todo-postgresql
 ```
 
 ## Credentials

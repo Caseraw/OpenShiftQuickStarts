@@ -28,18 +28,12 @@
 
 ---
 
-## Lifecycle
+## Deploy
 
 ```bash
 # Deploy
-bash applications/<name>/scripts/deploy.sh
-
-# Reset (remove runtime state, keep app installed)
-bash applications/<name>/scripts/reset.sh
-
-# Update (re-apply manifests after changes)
-bash applications/<name>/scripts/update.sh
+oc apply -k applications/<name>/
 
 # Remove completely
-bash applications/<name>/scripts/cleanup.sh
+oc delete namespace <namespace>
 ```
