@@ -73,7 +73,13 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Workshop: workshop.md
+  - Workshop:
+    - Overview: workshop.md
+    - OpenShift Web Console: scenarios/openshift-web-console.md
+    - Deploy an Example Application: scenarios/deploy-example-application.md
+    - Deploy a 2-Tier Example Application: scenarios/deploy-2-tier-application.md
+    - Deploy a Virtual Machine: scenarios/deploy-virtual-machine.md
+    - Deploy Mattermost & Alertmanager: scenarios/deploy-mattermost-alertmanager.md
 
 extra:
   social:
