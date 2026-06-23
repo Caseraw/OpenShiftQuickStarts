@@ -258,7 +258,7 @@ spec:
                   name: loki-netobserv
                   namespace: netobserv
                 spec:
-                  size: 1x.demo
+                  size: 1x.small
                   storage:
                     schemas:
                       - version: v13
@@ -303,7 +303,7 @@ spec:
                   agent:
                     type: eBPF
                     ebpf:
-                      sampling: 50
+                      sampling: 200
                       privileged: false
                       excludeInterfaces:
                         - lo

@@ -230,7 +230,7 @@ spec:
     # 6. LokiStack CR — the log storage instance
     #    Depends on: logging-loki-s3 Secret (step 3 Job) and
     #                loki-s3-ca-bundle ConfigMap (step 5).
-    #    size: 1x.demo is suitable for lab/workshop clusters.
+    #    size: 1x.small — 3 ingesters with RF=2; shards writes across ingesters.
     #    storageClassName: ocs-external-storagecluster-ceph-rbd-immediate
     #      provides RWO block PVCs for ingesters, queriers, etc.
     # ------------------------------------------------------------------ #
@@ -251,7 +251,7 @@ spec:
                   name: logging-loki
                   namespace: openshift-logging
                 spec:
-                  size: 1x.demo
+                  size: 1x.small
                   storage:
                     schemas:
                       - version: v13
