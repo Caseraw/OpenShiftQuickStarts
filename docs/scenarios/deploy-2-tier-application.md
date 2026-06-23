@@ -101,7 +101,7 @@ route.route.openshift.io/todo-frontend created
 Both tiers trigger an on-cluster Docker build immediately after their BuildConfig is created. The builds run in parallel.
 
 1. Switch to the **Core platform** perspective.
-2. Open **Topology** in the left navigation bar.
+2. Open **Workloads** / **Topology** in the left navigation bar.
 3. Use the **Project** dropdown to select `todo-postgresql`. You will see the PostgreSQL build running.
 4. Switch the project to `todo-frontend` to see the frontend build.
 
