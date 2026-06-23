@@ -1,6 +1,6 @@
 # Deploy a Virtual Machine
 
-In this scenario you will create a **Red Hat Enterprise Linux 9** Virtual Machine using OpenShift Virtualization, explore the VM management interface, install the **Apache HTTP Server** inside the VM, and expose it externally via an OpenShift Service and Route.
+In this scenario you will create a **Red Hat Enterprise Linux 9** Virtual Machine using OpenShift Virtualization, explore the VM management interface, install the **nginx** web server inside the VM, and expose it externally via an OpenShift Service and Route.
 
 ---
 
