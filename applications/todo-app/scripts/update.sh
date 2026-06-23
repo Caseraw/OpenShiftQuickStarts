@@ -27,17 +27,9 @@ echo -e "${BOLD}==> Updating application: todo-app${NC}"
 echo ""
 
 ENV_FILE="${REPO_ROOT}/environment/env.sh"
-if [[ -f "${ENV_FILE}" ]]; then
-  # shellcheck source=/dev/null
-  source "${ENV_FILE}"
-fi
-
-if [[ -n "${SPOKE1_API_URL:-}" && -n "${SPOKE1_USERNAME:-}" && -n "${SPOKE1_PASSWORD:-}" ]]; then
-  oc login "${SPOKE1_API_URL}" \
-    -u "${SPOKE1_USERNAME}" \
-    -p "${SPOKE1_PASSWORD}" \
-    --insecure-skip-tls-verify &>/dev/null
-fi
+if [[ -f "${ENV_FILE}" ]]; then source "${ENV_FILE}"; fi
+# shellcheck source=/dev/null
+source "${REPO_ROOT}/environment/lib/cluster-target.sh"
 
 wait_for_build() {
   local ns="$1" build_name="$2"
@@ -59,12 +51,12 @@ wait_for_build() {
 
 info "Starting new PostgreSQL build..."
 PG_BUILD=$(oc start-build todo-postgresql -n "${PG_NAMESPACE}" -o name)
-wait_for_build "${PG_NAMESPACE}" "${PG_BUILD#build/}"
+wait_for_build "${PG_NAMESPACE}" "${PG_BUILD##*/}"
 echo ""
 
 info "Starting new Frontend build..."
 FE_BUILD=$(oc start-build todo-frontend -n "${FE_NAMESPACE}" -o name)
-wait_for_build "${FE_NAMESPACE}" "${FE_BUILD#build/}"
+wait_for_build "${FE_NAMESPACE}" "${FE_BUILD##*/}"
 echo ""
 
 info "Waiting for PostgreSQL rollout..."

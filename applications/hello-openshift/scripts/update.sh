@@ -28,16 +28,8 @@ echo ""
 
 ENV_FILE="${REPO_ROOT}/environment/env.sh"
 if [[ -f "${ENV_FILE}" ]]; then source "${ENV_FILE}"; fi
-
-if [[ -n "${SPOKE1_API_URL:-}" && -n "${SPOKE1_USERNAME:-}" && -n "${SPOKE1_PASSWORD:-}" ]]; then
-  oc login "${SPOKE1_API_URL}" -u "${SPOKE1_USERNAME}" -p "${SPOKE1_PASSWORD}" \
-    --insecure-skip-tls-verify &>/dev/null
-fi
-
-if ! oc whoami &>/dev/null; then
-  error "Not logged in to any cluster."
-  exit 1
-fi
+# shellcheck source=/dev/null
+source "${REPO_ROOT}/environment/lib/cluster-target.sh"
 
 # Re-apply manifests in case definitions changed
 info "Re-applying manifests..."

@@ -25,17 +25,9 @@ echo -e "${BOLD}==> Resetting application: todo-app${NC}"
 echo ""
 
 ENV_FILE="${REPO_ROOT}/environment/env.sh"
-if [[ -f "${ENV_FILE}" ]]; then
-  # shellcheck source=/dev/null
-  source "${ENV_FILE}"
-fi
-
-if [[ -n "${SPOKE1_API_URL:-}" && -n "${SPOKE1_USERNAME:-}" && -n "${SPOKE1_PASSWORD:-}" ]]; then
-  oc login "${SPOKE1_API_URL}" \
-    -u "${SPOKE1_USERNAME}" \
-    -p "${SPOKE1_PASSWORD}" \
-    --insecure-skip-tls-verify &>/dev/null
-fi
+if [[ -f "${ENV_FILE}" ]]; then source "${ENV_FILE}"; fi
+# shellcheck source=/dev/null
+source "${REPO_ROOT}/environment/lib/cluster-target.sh"
 
 PG_POD=$(oc get pod -n "${PG_NAMESPACE}" \
   -l "app.kubernetes.io/name=todo-postgresql" \

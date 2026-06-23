@@ -15,9 +15,10 @@
 #   bash applications/todo-app/scripts/deploy.sh
 #
 # Environment (sourced from environment/env.sh if present):
-#   SPOKE1_API_URL     API endpoint of the target cluster
-#   SPOKE1_USERNAME    Cluster username
-#   SPOKE1_PASSWORD    Cluster password
+#   TARGET_SPOKE       Spoke index to deploy to (default: 1)
+#   TARGET_API_URL     Override cluster API URL directly
+#   TARGET_USERNAME    Override cluster username directly
+#   TARGET_PASSWORD    Override cluster password directly
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,33 +43,9 @@ echo ""
 
 # ─── Source environment ──────────────────────────────────────────────────────
 ENV_FILE="${REPO_ROOT}/environment/env.sh"
-if [[ -f "${ENV_FILE}" ]]; then
-  # shellcheck source=/dev/null
-  source "${ENV_FILE}"
-  info "Sourced environment from ${ENV_FILE}"
-else
-  warn "environment/env.sh not found — using current oc context."
-fi
-
-# ─── Login to target cluster ─────────────────────────────────────────────────
-if [[ -n "${SPOKE1_API_URL:-}" && -n "${SPOKE1_USERNAME:-}" && -n "${SPOKE1_PASSWORD:-}" ]]; then
-  info "Logging into Spoke 1: ${SPOKE1_API_URL}"
-  if ! oc login "${SPOKE1_API_URL}" \
-        -u "${SPOKE1_USERNAME}" \
-        -p "${SPOKE1_PASSWORD}" \
-        --insecure-skip-tls-verify \
-        &>/dev/null; then
-    error "Login failed. Check SPOKE1_API_URL, SPOKE1_USERNAME, SPOKE1_PASSWORD."
-    exit 1
-  fi
-  success "Logged in to Spoke 1."
-else
-  warn "SPOKE1_* vars not set — using current oc context."
-  if ! oc whoami &>/dev/null; then
-    error "Not logged in to any cluster."
-    exit 1
-  fi
-fi
+if [[ -f "${ENV_FILE}" ]]; then source "${ENV_FILE}"; fi
+# shellcheck source=/dev/null
+source "${REPO_ROOT}/environment/lib/cluster-target.sh"
 
 echo ""
 echo "  Cluster: $(oc whoami --show-server)"

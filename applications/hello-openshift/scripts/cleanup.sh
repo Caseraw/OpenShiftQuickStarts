@@ -14,10 +14,11 @@ REPO_ROOT="$(cd "${APP_DIR}/../.." && pwd)"
 APP_NAME="hello-openshift"
 NAMESPACE="hello-openshift"
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
+RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
 info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
 success() { echo -e "${GREEN}[OK]${NC}    $*"; }
+warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
 echo -e "${BOLD}==> Cleaning up application: ${APP_NAME}${NC}"
@@ -25,16 +26,8 @@ echo ""
 
 ENV_FILE="${REPO_ROOT}/environment/env.sh"
 if [[ -f "${ENV_FILE}" ]]; then source "${ENV_FILE}"; fi
-
-if [[ -n "${SPOKE1_API_URL:-}" && -n "${SPOKE1_USERNAME:-}" && -n "${SPOKE1_PASSWORD:-}" ]]; then
-  oc login "${SPOKE1_API_URL}" -u "${SPOKE1_USERNAME}" -p "${SPOKE1_PASSWORD}" \
-    --insecure-skip-tls-verify &>/dev/null
-fi
-
-if ! oc whoami &>/dev/null; then
-  error "Not logged in to any cluster."
-  exit 1
-fi
+# shellcheck source=/dev/null
+source "${REPO_ROOT}/environment/lib/cluster-target.sh"
 
 echo "  Cluster: $(oc whoami --show-server)"
 echo "  User:    $(oc whoami)"

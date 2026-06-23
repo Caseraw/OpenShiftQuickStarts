@@ -25,17 +25,9 @@ echo -e "${BOLD}==> Cleaning up application: todo-app${NC}"
 echo ""
 
 ENV_FILE="${REPO_ROOT}/environment/env.sh"
-if [[ -f "${ENV_FILE}" ]]; then
-  # shellcheck source=/dev/null
-  source "${ENV_FILE}"
-fi
-
-if [[ -n "${SPOKE1_API_URL:-}" && -n "${SPOKE1_USERNAME:-}" && -n "${SPOKE1_PASSWORD:-}" ]]; then
-  oc login "${SPOKE1_API_URL}" \
-    -u "${SPOKE1_USERNAME}" \
-    -p "${SPOKE1_PASSWORD}" \
-    --insecure-skip-tls-verify &>/dev/null
-fi
+if [[ -f "${ENV_FILE}" ]]; then source "${ENV_FILE}"; fi
+# shellcheck source=/dev/null
+source "${REPO_ROOT}/environment/lib/cluster-target.sh"
 
 for ns in "${FE_NAMESPACE}" "${PG_NAMESPACE}"; do
   if oc get namespace "${ns}" &>/dev/null; then
