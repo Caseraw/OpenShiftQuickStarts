@@ -130,6 +130,13 @@ spec:
                   name: instance
                   namespace: openshift-logging
                 spec:
+                  collector:
+                    resources:
+                      limits:
+                        memory: 8Gi
+                      requests:
+                        cpu: 500m
+                        memory: 256Mi
                   serviceAccount:
                     name: logging-collector
                   outputs:
