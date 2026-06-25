@@ -263,9 +263,9 @@ In this part you will deploy the same application using a single `oc` command fr
 
 ### Step 2 — Monitor from the Topology view
 
-1. Switch to the **Developer** perspective.
-2. Use the **Project** dropdown to select `hello-openshift`.
-3. Open **Topology** in the left navigation bar.
+1. Switch to the **Core platform** perspective (if needed) and go to **Workloads** in the left menu.
+2. Open **Topology** in the left navigation bar.
+3. Use the **Project** dropdown to select `hello-openshift`.
 4. You will see the `hello-openshift` application node appear and a build start automatically.
 5. Click the node → **Resources** tab to watch the build logs and monitor the pod status, exactly as in Part 1.
 6. Once the pod is **Running**, click the **open URL** icon (↗) to access the application.
